@@ -181,6 +181,7 @@ export function summarize(holdings, settings = {}) {
   const costBasis = holdings.reduce((sum, holding) => sum + holding.costBasis, 0)
   const endowmentValue = numberFrom(settings.endowmentValue)
   const corpus = numberFrom(settings.netContributions || settings.corpus)
+  const scholarshipDistributions = numberFrom(settings.scholarshipDistributions)
   const cash = holdings.filter((holding) => holding.sector === 'Cash').reduce((sum, holding) => sum + holding.marketValue, 0)
   const funds = holdings.filter((holding) => holding.sector === 'Fund').reduce((sum, holding) => sum + holding.marketValue, 0)
   const sectors = Object.values(
@@ -200,6 +201,7 @@ export function summarize(holdings, settings = {}) {
     endowmentValue,
     totalClubValue: portfolioValue + endowmentValue,
     corpus,
+    scholarshipDistributions,
     cash,
     funds,
     unrealizedGain: portfolioValue - costBasis,

@@ -17,9 +17,14 @@ describe('sheet data utilities', () => {
 
   it('calculates portfolio summaries from parsed holdings', () => {
     const holdings = parseHoldings('symbol,quantity,costBasis,sector,name,currentPrice,marketValue\nABC,2,$10,Industrials,ABC Corp,$8,$16\nCASH,4,$4,Cash,Cash,$1,$4')
-    const summary = summarize(holdings, { endowmentValue: '$5', netContributions: '$20' })
+    const summary = summarize(holdings, {
+      endowmentValue: '$5',
+      netContributions: '$20',
+      scholarshipDistributions: '$500',
+    })
     expect(summary.portfolioValue).toBe(20)
     expect(summary.totalClubValue).toBe(25)
     expect(summary.cash).toBe(4)
+    expect(summary.scholarshipDistributions).toBe(500)
   })
 })

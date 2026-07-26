@@ -4,7 +4,7 @@ A static, student-friendly dashboard for the Detroit Catholic Central Finance Cl
 
 ## What the dashboard includes
 
-- Portfolio, endowment, corpus, cost-basis, and concentration summaries
+- Portfolio, endowment, corpus, scholarship-distribution, cost-basis, and concentration summaries
 - Searchable and sortable holdings with mobile-friendly position cards
 - Accessible annual balance history with an explicit balance-versus-return explanation
 - Portfolio sector allocation and SCHD sector-tilt comparison
@@ -21,7 +21,7 @@ The application reads CSV exports from spreadsheet `1Zo7-zIo5SppN4yok494w4ufIuOM
 | Holdings | `2018330312` | Positions, prices, values, cost basis, sector, industry, and fundamentals |
 | SCHD benchmark | `202600101` | Benchmark sector weights |
 | Performance | `202600102` | Annual portfolio, endowment, and total-club balances |
-| Club settings | `202600103` | Endowment, corpus/net contributions, and last-updated timestamp |
+| Club settings | `202600103` | Endowment, corpus/net contributions, scholarship distributions, and last-updated timestamp |
 
 The spreadsheet must remain published or shared so that anyone with the link can read it. If a tab fails, the dashboard never substitutes invented financial data.
 

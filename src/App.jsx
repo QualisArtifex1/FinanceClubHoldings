@@ -235,6 +235,7 @@ function KpiGrid({ summary, holdings }) {
       <Kpi label="Endowment" value={currency.format(summary.endowmentValue)} note="From Club Settings tab" />
       <Kpi label="Unrealized gain" value={currency.format(summary.unrealizedGain)} note="Market value minus cost basis" tone={summary.unrealizedGain >= 0 ? 'positive' : 'negative'} />
       <Kpi label="Positions" value={String(holdings.length)} note={`${summary.sectors.length} represented sectors`} />
+      <Kpi label="Scholarship distributions" value={currency.format(summary.scholarshipDistributions)} note="Tracked separately from club value" />
     </section>
   )
 }
