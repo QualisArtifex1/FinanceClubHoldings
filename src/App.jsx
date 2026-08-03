@@ -38,6 +38,11 @@ function routeFromHash() {
   return ROUTES[route] ? route : 'portfolio'
 }
 
+export function yahooFinanceUrl(symbol) {
+  const yahooSymbol = String(symbol || '').trim().toUpperCase().replaceAll('.', '-')
+  return yahooSymbol ? `https://finance.yahoo.com/quote/${encodeURIComponent(yahooSymbol)}/` : ''
+}
+
 function App() {
   const [route, setRoute] = useState(routeFromHash)
   const [data, setData] = useState(null)
@@ -458,10 +463,22 @@ function HoldingDetail({ holding, total }) {
   const rangePosition = holding.high52 && holding.low52 && holding.high52 !== holding.low52
     ? ((holding.price - holding.low52) / (holding.high52 - holding.low52)) * 100
     : null
+  const researchUrl = holding.sector === 'Cash' ? '' : yahooFinanceUrl(holding.symbol)
   return (
     <aside className="panel detail-panel" aria-label={`Details for ${holding.symbol}`}>
       <div className="detail-title"><span>{holding.symbol.slice(0, 2)}</span><div><p className="eyebrow">Selected holding</p><h2>{holding.symbol}</h2><p>{holding.name}</p></div></div>
       <div className="detail-price"><strong>{preciseCurrency.format(holding.price)}</strong><span>{ratio(holding.marketValue, total).toFixed(1)}% weight</span></div>
+      {researchUrl && (
+        <a
+          className="yahoo-research-link"
+          href={researchUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Research ${holding.symbol} on Yahoo Finance (opens in a new tab)`}
+        >
+          Research {holding.symbol} on Yahoo Finance <span aria-hidden="true">↗</span>
+        </a>
+      )}
       <dl className="metric-list">
         <div><dt>Market value</dt><dd>{currency.format(holding.marketValue)}</dd></div>
         <div><dt>Shares</dt><dd>{number.format(holding.quantity)}</dd></div>

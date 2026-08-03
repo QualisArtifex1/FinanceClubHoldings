@@ -6,6 +6,7 @@ A static, student-friendly dashboard for the Detroit Catholic Central Finance Cl
 
 - Portfolio, endowment, corpus, scholarship-distribution, cost-basis, and concentration summaries
 - Searchable and sortable holdings with mobile-friendly position cards
+- One-click Yahoo Finance research links for each investable holding
 - Accessible annual balance history with an explicit balance-versus-return explanation
 - Portfolio sector allocation and SCHD sector-tilt comparison
 - Research priorities based on position size and unrealized outcomes
