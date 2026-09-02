@@ -26,11 +26,8 @@ function percent(value, digits = 1) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(digits)}%`
 }
 
-function updatedText(settings, fetchedAt) {
-  const value = settings.lastUpdated
-  if (!value) return `Loaded ${fetchedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? `Sheet updated ${value}` : `Sheet updated ${parsed.toLocaleString()}`
+function updatedText(fetchedAt) {
+  return `Live Sheet data loaded ${fetchedAt.toLocaleString()}`
 }
 
 function routeFromHash() {
@@ -90,7 +87,7 @@ function App() {
             <span className={`status-pill ${error ? 'error' : loading ? 'loading' : ''}`}>
               <i aria-hidden="true" /> {loading ? 'Loading Google Sheet' : error ? 'Sheet unavailable' : 'Google Sheet connected'}
             </span>
-            {data && <span className="time-pill">{updatedText(data.settings, data.fetchedAt)}</span>}
+            {data && <span className="time-pill">{updatedText(data.fetchedAt)}</span>}
             <button className="refresh-button" type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}>
               Refresh data
             </button>
