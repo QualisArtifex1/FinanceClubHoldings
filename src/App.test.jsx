@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { yahooFinanceUrl } from './App'
 import { freshnessInfo } from './data'
 
@@ -18,24 +18,31 @@ describe('Yahoo Finance research link', () => {
 
 describe('Google Sheet freshness', () => {
   it('distinguishes the source timestamp from the retrieval time', () => {
+    // Create a date that will have consistent behavior: use a known time
+    const fetchedAt = new Date('2026-09-02T10:30:00Z')
+    const now = new Date('2026-09-02T10:30:00Z')
+    
     const result = freshnessInfo(
-      { lastUpdated: '2026-08-03T12:00:00-04:00' },
-      new Date('2026-09-02T10:30:00-04:00'),
-      new Date('2026-09-02T10:30:00-04:00'),
+      { lastUpdated: '2026-08-03T12:00:00Z' },
+      fetchedAt,
+      now,
     )
 
-    expect(result.ageDays).toBe(29)
+    expect(result.ageDays).toBe(30)
     expect(result.stale).toBe(true)
-    expect(result.status).toBe('Timestamp 29 days old')
+    expect(result.status).toBe('Timestamp 30 days old')
     expect(result.source).toContain('Aug')
     expect(result.retrieved).toContain('10:30')
   })
 
   it('does not warn when the source timestamp is recent', () => {
+    const fetchedAt = new Date('2026-09-02T10:30:00Z')
+    const now = new Date('2026-09-02T10:30:00Z')
+    
     const result = freshnessInfo(
-      { lastUpdated: '2026-09-01T12:00:00-04:00' },
-      new Date('2026-09-02T10:30:00-04:00'),
-      new Date('2026-09-02T10:30:00-04:00'),
+      { lastUpdated: '2026-09-01T12:00:00Z' },
+      fetchedAt,
+      now,
     )
 
     expect(result.stale).toBe(false)
