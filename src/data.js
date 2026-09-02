@@ -7,21 +7,42 @@ export const SHEETS = {
   settings: '202600103',
 }
 
+export function freshnessInfo(settings = {}, fetchedAt = new Date(), now = new Date()) {
+  const retrieved = `Retrieved ${fetchedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+  const value = settings.lastUpdated
+  if (!value) return { status: 'Google Sheet connected', source: 'Source update time unavailable', retrieved, stale: false, ageDays: null }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return { status: 'Google Sheet connected', source: `Source timestamp: ${value}`, retrieved, stale: false, ageDays: null }
+  }
+
+  const ageDays = Math.max(0, Math.floor((now.getTime() - parsed.getTime()) / 86_400_000))
+  const stale = ageDays >= 14
+  return {
+    status: stale ? `Timestamp ${ageDays} days old` : 'Sheet connected',
+    source: `Source ${parsed.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}`,
+    retrieved,
+    stale,
+    ageDays,
+  }
+}
+
 export const SECTOR_COLORS = {
-  'Information Technology': '#1769aa',
-  'Consumer Staples': '#3f7d20',
-  'Consumer Discretionary': '#a46d17',
-  'Health Care': '#7651a8',
-  Financials: '#28727c',
-  Energy: '#b25e2a',
-  'Communication Services': '#496579',
-  Utilities: '#d7202f',
-  'Real Estate': '#6e6259',
-  Industrials: '#687482',
-  Materials: '#8d742b',
-  Fund: '#9b7b3d',
-  Cash: '#202b3b',
-  Unknown: '#64748b',
+  'Information Technology': '#004F9E',
+  'Consumer Staples': '#C9A978',
+  'Consumer Discretionary': '#FFC20D',
+  'Health Care': '#ED282C',
+  Financials: 'rgba(0, 79, 158, .78)',
+  Energy: 'rgba(201, 169, 120, .78)',
+  'Communication Services': 'rgba(255, 194, 13, .72)',
+  Utilities: 'rgba(237, 40, 44, .72)',
+  'Real Estate': 'rgba(0, 79, 158, .56)',
+  Industrials: 'rgba(201, 169, 120, .56)',
+  Materials: 'rgba(255, 194, 13, .52)',
+  Fund: 'rgba(237, 40, 44, .52)',
+  Cash: 'rgba(0, 79, 158, .32)',
+  Unknown: 'rgba(0, 0, 0, .36)',
 }
 
 export function parseCsv(text) {

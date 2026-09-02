@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { loadDashboardData, SECTOR_COLORS, summarize } from './data'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { freshnessInfo, loadDashboardData, SECTOR_COLORS, summarize } from './data'
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const preciseCurrency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
@@ -26,11 +26,16 @@ function percent(value, digits = 1) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(digits)}%`
 }
 
-function updatedText(settings, fetchedAt) {
-  const value = settings.lastUpdated
-  if (!value) return `Loaded ${fetchedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? `Sheet updated ${value}` : `Sheet updated ${parsed.toLocaleString()}`
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => (typeof window !== 'undefined' ? window.matchMedia(query).matches : false))
+  useEffect(() => {
+    const media = window.matchMedia(query)
+    const update = () => setMatches(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [query])
+  return matches
 }
 
 function routeFromHash() {
@@ -50,9 +55,13 @@ function App() {
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedSymbol, setSelectedSymbol] = useState('')
+  const [detailOpen, setDetailOpen] = useState(false)
 
   useEffect(() => {
-    const onHashChange = () => setRoute(routeFromHash())
+    const onHashChange = () => {
+      setRoute(routeFromHash())
+      setDetailOpen(false)
+    }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
@@ -76,6 +85,11 @@ function App() {
   const summary = useMemo(() => (data ? summarize(data.holdings, data.settings) : null), [data])
   const selectedHolding = data?.holdings.find((holding) => holding.symbol === selectedSymbol) || null
   const routeInfo = ROUTES[route]
+  const freshness = data ? freshnessInfo(data.settings, data.fetchedAt) : null
+  const selectHolding = (symbol) => {
+    setSelectedSymbol(symbol)
+    setDetailOpen(true)
+  }
 
   return (
     <div className="app-shell">
@@ -86,13 +100,21 @@ function App() {
             <p className="eyebrow">{routeInfo.eyebrow}</p>
             <h1>{routeInfo.title}</h1>
           </div>
-          <div className="data-status" aria-live="polite">
-            <span className={`status-pill ${error ? 'error' : loading ? 'loading' : ''}`}>
-              <i aria-hidden="true" /> {loading ? 'Loading Google Sheet' : error ? 'Sheet unavailable' : 'Google Sheet connected'}
-            </span>
-            {data && <span className="time-pill">{updatedText(data.settings, data.fetchedAt)}</span>}
+          <div className={`data-status ${freshness?.stale ? 'stale' : ''}`} aria-live="polite">
+            <div className="status-summary">
+              <span className={`status-pill ${error ? 'error' : loading ? 'loading' : ''}`}>
+                <i aria-hidden="true" /> {loading ? 'Loading latest data' : error ? 'Sheet unavailable' : freshness?.status || 'Google Sheet connected'}
+              </span>
+              {freshness && (
+                <span className="freshness-lines">
+                  <strong>{freshness.source}</strong>
+                  <small>{freshness.retrieved}</small>
+                </span>
+              )}
+            </div>
             <button className="refresh-button" type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}>
-              Refresh data
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6v5h-5 M4 18v-5h5 M18.5 9A7 7 0 0 0 6 6.5L4 9 M5.5 15A7 7 0 0 0 18 17.5l2-2.5" /></svg>
+              Refresh
             </button>
           </div>
         </header>
@@ -116,7 +138,9 @@ function App() {
                 data={data}
                 summary={summary}
                 selectedHolding={selectedHolding}
-                onSelect={setSelectedSymbol}
+                onSelect={selectHolding}
+                detailOpen={detailOpen}
+                onCloseDetail={() => setDetailOpen(false)}
               />
             )}
             {route === 'holdings' && (
@@ -124,7 +148,9 @@ function App() {
                 holdings={data.holdings}
                 summary={summary}
                 selectedHolding={selectedHolding}
-                onSelect={setSelectedSymbol}
+                onSelect={selectHolding}
+                detailOpen={detailOpen}
+                onCloseDetail={() => setDetailOpen(false)}
               />
             )}
             {route === 'benchmark' && <BenchmarkView data={data} summary={summary} />}
@@ -133,7 +159,9 @@ function App() {
                 data={data}
                 summary={summary}
                 selectedHolding={selectedHolding}
-                onSelect={setSelectedSymbol}
+                onSelect={selectHolding}
+                detailOpen={detailOpen}
+                onCloseDetail={() => setDetailOpen(false)}
               />
             )}
             <LearningFooter />
@@ -208,8 +236,7 @@ function ErrorState({ message, onRetry }) {
   )
 }
 
-function PortfolioView({ data, summary, selectedHolding, onSelect }) {
-  const equities = data.holdings.filter((holding) => holding.sector !== 'Cash' && holding.sector !== 'Fund')
+function PortfolioView({ data, summary, selectedHolding, onSelect, detailOpen, onCloseDetail }) {
   return (
     <div className="page-stack">
       <KpiGrid summary={summary} holdings={data.holdings} />
@@ -217,7 +244,6 @@ function PortfolioView({ data, summary, selectedHolding, onSelect }) {
         <Insight label="Largest position" value={data.holdings[0]?.symbol || '—'} detail={`${weightOf(data.holdings[0], summary).toFixed(1)}% of portfolio`} />
         <Insight label="Top five concentration" value={`${summary.topFiveWeight.toFixed(1)}%`} detail="Combined portfolio weight" />
         <Insight label="Cash reserve" value={`${ratio(summary.cash, summary.portfolioValue).toFixed(1)}%`} detail={currency.format(summary.cash)} />
-        <Insight label="Equity positions" value={String(equities.length)} detail={`${summary.sectors.length} asset sectors`} />
       </section>
       <BalanceChart points={data.performance} />
       <div className="two-column">
@@ -226,7 +252,7 @@ function PortfolioView({ data, summary, selectedHolding, onSelect }) {
       </div>
       <div className="content-with-detail">
         <HoldingsTable holdings={data.holdings.slice(0, 10)} total={summary.portfolioValue} selected={selectedHolding?.symbol} onSelect={onSelect} compact />
-        <HoldingDetail holding={selectedHolding} total={summary.portfolioValue} />
+        <HoldingDetail holding={selectedHolding} total={summary.portfolioValue} open={detailOpen} onClose={onCloseDetail} />
       </div>
     </div>
   )
@@ -234,13 +260,23 @@ function PortfolioView({ data, summary, selectedHolding, onSelect }) {
 
 function KpiGrid({ summary, holdings }) {
   return (
-    <section className="kpi-grid" aria-label="Portfolio summary">
-      <Kpi label="Portfolio value" value={currency.format(summary.portfolioValue)} note="Holdings from Google Sheet" />
-      <Kpi label="Total club value" value={currency.format(summary.totalClubValue)} note="Portfolio plus endowment" />
-      <Kpi label="Endowment" value={currency.format(summary.endowmentValue)} note="From Club Settings tab" />
-      <Kpi label="Unrealized gain" value={currency.format(summary.unrealizedGain)} note="Market value minus cost basis" tone={summary.unrealizedGain >= 0 ? 'positive' : 'negative'} />
-      <Kpi label="Positions" value={String(holdings.length)} note={`${summary.sectors.length} represented sectors`} />
-      <Kpi label="Scholarship distributions" value={currency.format(summary.scholarshipDistributions)} note="Tracked separately from club value" />
+    <section className="summary-layout" aria-label="Portfolio summary">
+      <article className="portfolio-hero">
+        <span>Portfolio value</span>
+        <strong>{currency.format(summary.portfolioValue)}</strong>
+        <p>Current market value of holdings from the club’s Google Sheet.</p>
+        <div className="hero-meta">
+          <span><b>{holdings.length}</b> positions</span>
+          <span><b>{summary.sectors.length}</b> sectors</span>
+          <span><b>{ratio(summary.cash, summary.portfolioValue).toFixed(1)}%</b> cash</span>
+        </div>
+      </article>
+      <div className="kpi-grid">
+        <Kpi label="Total club value" value={currency.format(summary.totalClubValue)} note="Portfolio plus endowment" />
+        <Kpi label="Unrealized gain" value={`${summary.unrealizedGain >= 0 ? '+' : ''}${currency.format(summary.unrealizedGain)}`} note="Market value minus cost basis" tone={summary.unrealizedGain >= 0 ? 'positive' : 'negative'} />
+        <Kpi label="Endowment" value={currency.format(summary.endowmentValue)} note="From Club Settings tab" />
+        <Kpi label="Scholarships distributed" value={currency.format(summary.scholarshipDistributions)} note="Tracked separately from club value" />
+      </div>
     </section>
   )
 }
@@ -267,12 +303,16 @@ function Insight({ label, value, detail }) {
 
 function BalanceChart({ points }) {
   const [range, setRange] = useState('All')
+  const [selectedYear, setSelectedYear] = useState(points.at(-1)?.year)
+  const compact = useMediaQuery('(max-width: 620px)')
   const visible = range === 'All' ? points : points.slice(-(range === '5Y' ? 5 : 3))
   if (!points.length) return <UnavailablePanel title="Balance history" />
 
-  const width = 800
-  const height = 265
-  const plot = { left: 92, right: 24, top: 24, bottom: 42 }
+  const width = compact ? 360 : 800
+  const height = compact ? 250 : 265
+  const plot = compact
+    ? { left: 62, right: 16, top: 25, bottom: 40 }
+    : { left: 92, right: 24, top: 24, bottom: 42 }
   const values = visible.map((point) => point.portfolioValue)
   const min = Math.min(...values)
   const max = Math.max(...values)
@@ -283,6 +323,11 @@ function BalanceChart({ points }) {
   const y = (value) => plot.top + ((high - value) / Math.max(high - low, 1)) * (height - plot.top - plot.bottom)
   const polyline = visible.map((point, index) => `${x(index)},${y(point.portfolioValue)}`).join(' ')
   const ticks = Array.from({ length: 5 }, (_, index) => low + ((high - low) * index) / 4).reverse()
+  const selectedPoint = visible.find((point) => point.year === selectedYear) || visible.at(-1)
+  const selectedIndex = points.findIndex((point) => point.year === selectedPoint?.year)
+  const previousPoint = selectedIndex > 0 ? points[selectedIndex - 1] : null
+  const change = previousPoint ? selectedPoint.portfolioValue - previousPoint.portfolioValue : null
+  const changePercent = previousPoint?.portfolioValue ? (change / previousPoint.portfolioValue) * 100 : null
 
   return (
     <section className="panel chart-panel">
@@ -294,7 +339,7 @@ function BalanceChart({ points }) {
         </div>
       )} />
       <div className="chart-scroll">
-        <svg className="line-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby="balance-title balance-desc">
+        <svg className="line-chart" viewBox={`0 0 ${width} ${height}`} role="group" aria-labelledby="balance-title balance-desc">
           <title id="balance-title">Annual portfolio balance</title>
           <desc id="balance-desc">Portfolio balance by year. This chart does not adjust for contributions or withdrawals and should not be read as investment return.</desc>
           {ticks.map((tick) => (
@@ -305,13 +350,39 @@ function BalanceChart({ points }) {
           ))}
           <polyline points={polyline} className="balance-area-line" />
           {visible.map((point, index) => (
-            <g key={point.year}>
-              <circle cx={x(index)} cy={y(point.portfolioValue)} r="4" />
-              <text x={x(index)} y={height - 14} textAnchor="middle">{point.year}</text>
+            <g
+              className="chart-point"
+              key={point.year}
+              role="button"
+              tabIndex="0"
+              aria-label={`${point.year}, portfolio balance ${currency.format(point.portfolioValue)}`}
+              onClick={() => setSelectedYear(point.year)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  setSelectedYear(point.year)
+                }
+              }}
+            >
+              <circle className={selectedPoint?.year === point.year ? 'selected' : ''} cx={x(index)} cy={y(point.portfolioValue)} r={selectedPoint?.year === point.year ? '6' : '4'} />
+              {(!compact || visible.length <= 7 || index % 2 === 0 || index === visible.length - 1) && (
+                <text x={x(index)} y={height - 14} textAnchor="middle">{point.year}</text>
+              )}
             </g>
           ))}
         </svg>
       </div>
+      {selectedPoint && (
+        <div className="chart-readout" aria-live="polite">
+          <span>Selected year</span>
+          <strong>{selectedPoint.year} · {currency.format(selectedPoint.portfolioValue)}</strong>
+          {previousPoint && (
+            <small className={change >= 0 ? 'positive' : 'negative'}>
+              {change >= 0 ? '+' : ''}{currency.format(change)} ({percent(changePercent)}) from {previousPoint.year}
+            </small>
+          )}
+        </div>
+      )}
       <p className="data-explainer"><strong>Balance is not return.</strong> Deposits and withdrawals affect these totals. A contribution-adjusted performance comparison requires transaction or cash-flow history in the Sheet.</p>
       <table className="sr-only">
         <caption>Annual portfolio balance data</caption>
@@ -366,10 +437,12 @@ function ConcentrationPanel({ holdings, summary }) {
   )
 }
 
-function HoldingsView({ holdings, summary, selectedHolding, onSelect }) {
+function HoldingsView({ holdings, summary, selectedHolding, onSelect, detailOpen, onCloseDetail }) {
   const [query, setQuery] = useState('')
   const [sector, setSector] = useState('All')
   const [assetClass, setAssetClass] = useState('All')
+  const [compareSymbols, setCompareSymbols] = useState([])
+  const [compareOpen, setCompareOpen] = useState(false)
   const sectors = ['All', ...new Set(holdings.map((holding) => holding.sector))]
   const filtered = holdings.filter((holding) => {
     const matchesQuery = `${holding.symbol} ${holding.name} ${holding.sector} ${holding.industry}`.toLowerCase().includes(query.trim().toLowerCase())
@@ -377,6 +450,10 @@ function HoldingsView({ holdings, summary, selectedHolding, onSelect }) {
     const matchesClass = assetClass === 'All' || (assetClass === 'Equities' ? !['Cash', 'Fund'].includes(holding.sector) : holding.sector === assetClass)
     return matchesQuery && matchesSector && matchesClass
   })
+  const comparedHoldings = compareSymbols.map((symbol) => holdings.find((holding) => holding.symbol === symbol)).filter(Boolean)
+  const toggleCompare = (symbol) => {
+    setCompareSymbols((current) => current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol].slice(0, 2))
+  }
 
   return (
     <div className="page-stack">
@@ -402,14 +479,37 @@ function HoldingsView({ holdings, summary, selectedHolding, onSelect }) {
         <Insight label="Largest position" value={filtered[0]?.symbol || '—'} detail={filtered[0] ? `${weightOf(filtered[0], summary).toFixed(1)}% of portfolio` : 'No match'} />
       </section>
       <div className="content-with-detail">
-        <HoldingsTable holdings={filtered} total={summary.portfolioValue} selected={selectedHolding?.symbol} onSelect={onSelect} />
-        <HoldingDetail holding={selectedHolding} total={summary.portfolioValue} />
+        <HoldingsTable
+          holdings={filtered}
+          total={summary.portfolioValue}
+          selected={selectedHolding?.symbol}
+          onSelect={onSelect}
+          compareSymbols={compareSymbols}
+          onToggleCompare={toggleCompare}
+        />
+        <HoldingDetail holding={selectedHolding} total={summary.portfolioValue} open={detailOpen} onClose={onCloseDetail} />
       </div>
+      <CompareDock
+        holdings={comparedHoldings}
+        onOpen={() => setCompareOpen(true)}
+        onRemove={toggleCompare}
+        onClear={() => setCompareSymbols([])}
+      />
+      <ComparisonDialog
+        holdings={comparedHoldings}
+        total={summary.portfolioValue}
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        onRemove={(symbol) => {
+          toggleCompare(symbol)
+          setCompareOpen(false)
+        }}
+      />
     </div>
   )
 }
 
-function HoldingsTable({ holdings, total, selected, onSelect, compact = false }) {
+function HoldingsTable({ holdings, total, selected, onSelect, compact = false, compareSymbols = [], onToggleCompare }) {
   const [sort, setSort] = useState({ key: 'marketValue', direction: 'desc' })
   const rows = [...holdings].sort((a, b) => {
     const left = sort.key === 'weight' ? ratio(a.marketValue, total) : a[sort.key]
@@ -436,6 +536,7 @@ function HoldingsTable({ holdings, total, selected, onSelect, compact = false })
               <th className="numeric"><SortButton column="weight">Weight</SortButton></th>
               <th className="numeric"><SortButton column="costBasis">Cost basis</SortButton></th>
               <th className="numeric"><SortButton column="gainLossPercent">Return</SortButton></th>
+              {onToggleCompare && <th className="compare-column">Compare</th>}
             </tr>
           </thead>
           <tbody>
@@ -448,6 +549,19 @@ function HoldingsTable({ holdings, total, selected, onSelect, compact = false })
                 <td data-label="Weight" className="numeric">{ratio(holding.marketValue, total).toFixed(1)}%</td>
                 <td data-label="Cost basis" className="numeric">{currency.format(holding.costBasis)}</td>
                 <td data-label="Return" className={`numeric ${holding.gainLossPercent >= 0 ? 'positive' : 'negative'}`}>{percent(holding.gainLossPercent)}</td>
+                {onToggleCompare && (
+                  <td data-label="Compare" className="compare-cell">
+                    <button
+                      className="compare-toggle"
+                      type="button"
+                      aria-pressed={compareSymbols.includes(holding.symbol)}
+                      disabled={compareSymbols.length >= 2 && !compareSymbols.includes(holding.symbol)}
+                      onClick={() => onToggleCompare(holding.symbol)}
+                    >
+                      {compareSymbols.includes(holding.symbol) ? 'Added' : 'Compare'}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -458,14 +572,116 @@ function HoldingsTable({ holdings, total, selected, onSelect, compact = false })
   )
 }
 
-function HoldingDetail({ holding, total }) {
+function CompareDock({ holdings, onOpen, onRemove, onClear }) {
+  if (!holdings.length) return null
+  return (
+    <aside className="compare-dock" aria-label="Holdings selected for comparison">
+      <div>
+        <span className="eyebrow">Compare mode</span>
+        <strong>{holdings.length === 1 ? 'Choose one more holding' : 'Two holdings ready'}</strong>
+      </div>
+      <div className="compare-chips">
+        {holdings.map((holding) => (
+          <button type="button" key={holding.symbol} onClick={() => onRemove(holding.symbol)} aria-label={`Remove ${holding.symbol} from comparison`}>
+            {holding.symbol} <span aria-hidden="true">×</span>
+          </button>
+        ))}
+      </div>
+      <button className="compare-open" type="button" onClick={onOpen} disabled={holdings.length < 2}>Compare holdings</button>
+      <button className="compare-clear" type="button" onClick={onClear}>Clear</button>
+    </aside>
+  )
+}
+
+function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
+  const closeRef = useRef(null)
+  useEffect(() => {
+    if (!open) return undefined
+    closeRef.current?.focus()
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, onClose])
+
+  if (!open || holdings.length < 2) return null
+  const rows = [
+    ['Price', (holding) => preciseCurrency.format(holding.price)],
+    ['Market value', (holding) => currency.format(holding.marketValue)],
+    ['Portfolio weight', (holding) => `${ratio(holding.marketValue, total).toFixed(1)}%`],
+    ['Unrealized return', (holding) => percent(holding.gainLossPercent), 'return'],
+    ['P/E ratio', (holding) => holding.pe ?? '—'],
+    ['Beta', (holding) => holding.beta ?? '—'],
+    ['EPS', (holding) => holding.eps ?? '—'],
+    ['52-week range', (holding) => holding.low52 && holding.high52 ? `${preciseCurrency.format(holding.low52)}–${preciseCurrency.format(holding.high52)}` : '—'],
+    ['Sector', (holding) => holding.sector],
+    ['Industry', (holding) => holding.industry],
+  ]
+
+  return (
+    <>
+      <button className="comparison-backdrop" type="button" aria-hidden="true" tabIndex="-1" onClick={onClose} />
+      <section className="comparison-dialog" role="dialog" aria-modal="true" aria-labelledby="comparison-title">
+        <header>
+          <div><span className="eyebrow">Side-by-side review</span><h2 id="comparison-title">Compare holdings</h2></div>
+          <button className="dialog-close" type="button" onClick={onClose} ref={closeRef} aria-label="Close comparison">×</button>
+        </header>
+        <div className="comparison-companies">
+          {holdings.map((holding) => (
+            <article key={holding.symbol}>
+              <div><span>{holding.symbol.slice(0, 2)}</span><div><strong>{holding.symbol}</strong><small>{holding.name}</small></div></div>
+              <button type="button" onClick={() => onRemove(holding.symbol)}>Remove</button>
+            </article>
+          ))}
+        </div>
+        <div className="comparison-table-wrap">
+          <table className="comparison-table">
+            <thead><tr><th>Metric</th>{holdings.map((holding) => <th key={holding.symbol}>{holding.symbol}</th>)}</tr></thead>
+            <tbody>
+              {rows.map(([label, value, tone]) => (
+                <tr key={label}>
+                  <th scope="row">{label}</th>
+                  {holdings.map((holding) => (
+                    <td key={holding.symbol} className={tone === 'return' ? (holding.gainLossPercent >= 0 ? 'positive' : 'negative') : ''}>{value(holding)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <footer>
+          {holdings.filter((holding) => holding.sector !== 'Cash').map((holding) => (
+            <a key={holding.symbol} href={yahooFinanceUrl(holding.symbol)} target="_blank" rel="noopener noreferrer">Research {holding.symbol} on Yahoo Finance <span aria-hidden="true">↗</span></a>
+          ))}
+        </footer>
+      </section>
+    </>
+  )
+}
+
+function HoldingDetail({ holding, total, open = false, onClose }) {
+  const closeRef = useRef(null)
+  useEffect(() => {
+    if (!open || !window.matchMedia('(max-width: 900px)').matches) return undefined
+    closeRef.current?.focus()
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose?.()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, holding?.symbol, onClose])
+
   if (!holding) return null
   const rangePosition = holding.high52 && holding.low52 && holding.high52 !== holding.low52
     ? ((holding.price - holding.low52) / (holding.high52 - holding.low52)) * 100
     : null
   const researchUrl = holding.sector === 'Cash' ? '' : yahooFinanceUrl(holding.symbol)
   return (
-    <aside className="panel detail-panel" aria-label={`Details for ${holding.symbol}`}>
+    <>
+    {open && <button className="detail-backdrop" type="button" aria-hidden="true" tabIndex="-1" onClick={onClose} />}
+    <aside className={`panel detail-panel ${open ? 'open' : ''}`} aria-label={`Details for ${holding.symbol}`}>
+      <button className="detail-close" type="button" onClick={onClose} ref={closeRef} aria-label="Close holding details">×</button>
       <div className="detail-title"><span>{holding.symbol.slice(0, 2)}</span><div><p className="eyebrow">Selected holding</p><h2>{holding.symbol}</h2><p>{holding.name}</p></div></div>
       <div className="detail-price"><strong>{preciseCurrency.format(holding.price)}</strong><span>{ratio(holding.marketValue, total).toFixed(1)}% weight</span></div>
       {researchUrl && (
@@ -496,6 +712,7 @@ function HoldingDetail({ holding, total }) {
       <div className="company-facts"><span>Sector<strong>{holding.sector}</strong></span><span>Industry<strong>{holding.industry}</strong></span><span>EPS<strong>{holding.eps ?? '—'}</strong></span></div>
       <p className="source-note">Fundamentals and prices come from the holdings tab and may be delayed.</p>
     </aside>
+    </>
   )
 }
 
@@ -547,7 +764,7 @@ function BenchmarkQuestions({ tilts }) {
   )
 }
 
-function ResearchView({ data, summary, selectedHolding, onSelect }) {
+function ResearchView({ data, summary, selectedHolding, onSelect, detailOpen, onCloseDetail }) {
   const equities = data.holdings.filter((holding) => !['Cash', 'Fund'].includes(holding.sector))
   const winner = [...equities].sort((a, b) => b.gainLossPercent - a.gainLossPercent)[0]
   const laggard = [...equities].sort((a, b) => a.gainLossPercent - b.gainLossPercent)[0]
@@ -575,7 +792,7 @@ function ResearchView({ data, summary, selectedHolding, onSelect }) {
             ))}
           </div>
         </section>
-        <HoldingDetail holding={selectedHolding} total={summary.portfolioValue} />
+        <HoldingDetail holding={selectedHolding} total={summary.portfolioValue} open={detailOpen} onClose={onCloseDetail} />
       </div>
       <section className="panel thesis-template">
         <PanelHeading eyebrow="Student analyst template" title="A repeatable investment memo" />
