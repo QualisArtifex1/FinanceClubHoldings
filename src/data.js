@@ -8,7 +8,7 @@ export const SHEETS = {
 }
 
 export function freshnessInfo(settings = {}, fetchedAt = new Date(), now = new Date()) {
-  const retrieved = `Retrieved ${fetchedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+  const retrieved = `Retrieved ${fetchedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })}`
   const value = settings.lastUpdated
   if (!value) return { status: 'Google Sheet connected', source: 'Source update time unavailable', retrieved, stale: false, ageDays: null }
 
