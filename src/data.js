@@ -8,7 +8,13 @@ export const SHEETS = {
 }
 
 export function freshnessInfo(settings = {}, fetchedAt = new Date(), now = new Date()) {
-  const retrieved = `Retrieved ${fetchedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })}`
+  // Use the date's intrinsic timezone instead of system locale
+  const hours = String(fetchedAt.getHours()).padStart(2, '0')
+  const minutes = String(fetchedAt.getMinutes()).padStart(2, '0')
+  const hour12 = fetchedAt.getHours() % 12 || 12
+  const ampm = fetchedAt.getHours() >= 12 ? 'PM' : 'AM'
+  const retrieved = `Retrieved ${hour12}:${minutes} ${ampm}`
+  
   const value = settings.lastUpdated
   if (!value) return { status: 'Google Sheet connected', source: 'Source update time unavailable', retrieved, stale: false, ageDays: null }
 
