@@ -8,11 +8,17 @@ export const SHEETS = {
 }
 
 export function freshnessInfo(settings = {}, fetchedAt = new Date(), now = new Date()) {
-  // Use the date's intrinsic timezone instead of system locale
-  const hours = String(fetchedAt.getHours()).padStart(2, '0')
-  const minutes = String(fetchedAt.getMinutes()).padStart(2, '0')
-  const hour12 = fetchedAt.getHours() % 12 || 12
-  const ampm = fetchedAt.getHours() >= 12 ? 'PM' : 'AM'
+  // Get the timezone offset in minutes and convert to hours
+  const timezoneOffset = fetchedAt.getTimezoneOffset() / 60
+  // Adjust hours by the timezone offset
+  let hours = fetchedAt.getUTCHours() - timezoneOffset
+  // Wrap around if needed
+  if (hours < 0) hours += 24
+  if (hours >= 24) hours -= 24
+  
+  const minutes = String(fetchedAt.getUTCMinutes()).padStart(2, '0')
+  const hour12 = hours % 12 || 12
+  const ampm = hours >= 12 ? 'PM' : 'AM'
   const retrieved = `Retrieved ${hour12}:${minutes} ${ampm}`
   
   const value = settings.lastUpdated
