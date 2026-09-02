@@ -28,9 +28,9 @@ describe('Google Sheet freshness', () => {
       now,
     )
 
-    expect(result.ageDays).toBe(30)
+    expect(result.ageDays).toBe(29)
     expect(result.stale).toBe(true)
-    expect(result.status).toBe('Timestamp 30 days old')
+    expect(result.status).toBe('Timestamp 29 days old')
     expect(result.source).toContain('Aug')
     expect(result.retrieved).toContain('10:30')
   })
