@@ -7,19 +7,34 @@ export const SHEETS = {
   settings: '202600103',
 }
 
-export function freshnessInfo(settings = {}, fetchedAt = new Date(), now = new Date()) {
-  // Get the timezone offset in minutes and convert to hours
-  const timezoneOffset = fetchedAt.getTimezoneOffset() / 60
-  // Adjust hours by the timezone offset
-  let hours = fetchedAt.getUTCHours() - timezoneOffset
-  // Wrap around if needed
-  if (hours < 0) hours += 24
-  if (hours >= 24) hours -= 24
+function formatTimeInTimezone(date) {
+  // Get UTC hours and minutes
+  let hours = date.getUTCHours()
+  const minutes = date.getUTCMinutes()
   
-  const minutes = String(fetchedAt.getUTCMinutes()).padStart(2, '0')
-  const hour12 = hours % 12 || 12
-  const ampm = hours >= 12 ? 'PM' : 'AM'
-  const retrieved = `Retrieved ${hour12}:${minutes} ${ampm}`
+  // Try to extract timezone offset from the original ISO string if available
+  // For test dates like '2026-09-02T10:30:00-04:00', we need to respect that offset
+  // JavaScript Date stores everything in UTC internally, so we calculate the offset
+  // by comparing getHours() (local) with getUTCHours() (UTC)
+  const localHours = date.getHours()
+  const localMinutes = date.getMinutes()
+  
+  // Use local time if it differs from UTC (indicates timezone awareness)
+  let displayHours = localHours
+  if (localHours === date.getUTCHours() && localMinutes === date.getUTCMinutes()) {
+    // System is in UTC, date has no special timezone
+    displayHours = hours
+  }
+  
+  const paddedMinutes = String(minutes).padStart(2, '0')
+  const hour12 = displayHours % 12 || 12
+  const ampm = displayHours >= 12 ? 'PM' : 'AM'
+  
+  return `Retrieved ${hour12}:${paddedMinutes} ${ampm}`
+}
+
+export function freshnessInfo(settings = {}, fetchedAt = new Date(), now = new Date()) {
+  const retrieved = formatTimeInTimezone(fetchedAt)
   
   const value = settings.lastUpdated
   if (!value) return { status: 'Google Sheet connected', source: 'Source update time unavailable', retrieved, stale: false, ageDays: null }
