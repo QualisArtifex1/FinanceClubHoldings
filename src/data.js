@@ -7,34 +7,13 @@ export const SHEETS = {
   settings: '202600103',
 }
 
-function formatTimeInTimezone(date) {
-  // Get UTC hours and minutes
-  let hours = date.getUTCHours()
-  const minutes = date.getUTCMinutes()
-  
-  // Try to extract timezone offset from the original ISO string if available
-  // For test dates like '2026-09-02T10:30:00-04:00', we need to respect that offset
-  // JavaScript Date stores everything in UTC internally, so we calculate the offset
-  // by comparing getHours() (local) with getUTCHours() (UTC)
-  const localHours = date.getHours()
-  const localMinutes = date.getMinutes()
-  
-  // Use local time if it differs from UTC (indicates timezone awareness)
-  let displayHours = localHours
-  if (localHours === date.getUTCHours() && localMinutes === date.getUTCMinutes()) {
-    // System is in UTC, date has no special timezone
-    displayHours = hours
-  }
-  
-  const paddedMinutes = String(minutes).padStart(2, '0')
-  const hour12 = displayHours % 12 || 12
-  const ampm = displayHours >= 12 ? 'PM' : 'AM'
-  
-  return `Retrieved ${hour12}:${paddedMinutes} ${ampm}`
-}
-
 export function freshnessInfo(settings = {}, fetchedAt = new Date(), now = new Date()) {
-  const retrieved = formatTimeInTimezone(fetchedAt)
+  // Use UTC hours and minutes for consistent timezone-independent formatting
+  const hours = fetchedAt.getUTCHours()
+  const minutes = String(fetchedAt.getUTCMinutes()).padStart(2, '0')
+  const hour12 = hours % 12 || 12
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  const retrieved = `Retrieved ${hour12}:${minutes} ${ampm}`
   
   const value = settings.lastUpdated
   if (!value) return { status: 'Google Sheet connected', source: 'Source update time unavailable', retrieved, stale: false, ageDays: null }
