@@ -7,33 +7,6 @@ export const SHEETS = {
   settings: '202600103',
 }
 
-export function freshnessInfo(settings = {}, fetchedAt = new Date(), now = new Date()) {
-  // Use UTC hours and minutes for consistent timezone-independent formatting
-  const hours = fetchedAt.getUTCHours()
-  const minutes = String(fetchedAt.getUTCMinutes()).padStart(2, '0')
-  const hour12 = hours % 12 || 12
-  const ampm = hours >= 12 ? 'PM' : 'AM'
-  const retrieved = `Retrieved ${hour12}:${minutes} ${ampm}`
-  
-  const value = settings.lastUpdated
-  if (!value) return { status: 'Google Sheet connected', source: 'Source update time unavailable', retrieved, stale: false, ageDays: null }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return { status: 'Google Sheet connected', source: `Source timestamp: ${value}`, retrieved, stale: false, ageDays: null }
-  }
-
-  const ageDays = Math.max(0, Math.floor((now.getTime() - parsed.getTime()) / 86_400_000))
-  const stale = ageDays >= 14
-  return {
-    status: stale ? `Timestamp ${ageDays} days old` : 'Sheet connected',
-    source: `Source ${parsed.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}`,
-    retrieved,
-    stale,
-    ageDays,
-  }
-}
-
 export const SECTOR_COLORS = {
   'Information Technology': '#004F9E',
   'Consumer Staples': '#C9A978',

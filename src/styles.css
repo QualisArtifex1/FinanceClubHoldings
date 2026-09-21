@@ -49,15 +49,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .page-header { max-width: 1450px; margin: 0 auto 22px; display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
 .eyebrow, .panel-header span { margin: 0 0 5px; color: rgba(0,0,0,.62); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .page-header h1 { max-width: 730px; margin: 0; color: var(--ink); font-family: Garamond, Palatino, "Palatino Linotype", serif; font-size: clamp(30px, 3vw, 42px); line-height: 1.02; letter-spacing: -.025em; }
-.data-status { width: 420px; max-width: 420px; min-height: 54px; padding: 7px; flex: 0 0 420px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: 0 4px 16px rgba(0,79,158,.06); }
+.data-status { min-height: 54px; padding: 7px; flex: 0 0 auto; display: flex; justify-content: flex-end; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: 0 4px 16px rgba(0,79,158,.06); }
 .status-summary { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .status-pill { min-height: 36px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; color: var(--positive); background: var(--blue-soft); font-size: 12px; font-weight: 800; white-space: nowrap; }
 .status-pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px rgba(0,79,158,.14); }
 .status-pill.loading { color: var(--blue); }
 .status-pill.error { color: var(--negative); }
-.data-status.stale .status-pill { color: #000; background: rgba(255,194,13,.28); }
-.freshness-lines { min-width: 0; flex: 0 0 auto; display: grid; gap: 2px; color: var(--muted); font-size: 11px; line-height: 1.2; }
-.freshness-lines strong { overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .refresh-button, .error-state button { min-height: 40px; padding: 0 13px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--blue); border-radius: 8px; color: white; background: var(--blue); font-size: 12px; font-weight: 800; cursor: pointer; }
 .refresh-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .refresh-button:disabled { opacity: .55; cursor: wait; }
@@ -312,7 +309,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .data-status { width: 100%; max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
   .status-summary { min-width: 0; display: grid; align-items: start; gap: 5px; }
   .status-pill { min-height: 32px; width: fit-content; max-width: 100%; white-space: normal; }
-  .freshness-lines strong { white-space: normal; }
   .refresh-button { min-height: 48px; align-self: center; }
   .summary-layout { grid-template-columns: 1fr; }
   .portfolio-hero { min-height: 220px; padding: 21px; }

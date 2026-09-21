@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { freshnessInfo, loadDashboardData, SECTOR_COLORS, summarize } from './data'
+import { loadDashboardData, SECTOR_COLORS, summarize } from './data'
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const preciseCurrency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
@@ -85,7 +85,6 @@ function App() {
   const summary = useMemo(() => (data ? summarize(data.holdings, data.settings) : null), [data])
   const selectedHolding = data?.holdings.find((holding) => holding.symbol === selectedSymbol) || null
   const routeInfo = ROUTES[route]
-  const freshness = data ? freshnessInfo(data.settings, data.fetchedAt) : null
   const selectHolding = (symbol) => {
     setSelectedSymbol(symbol)
     setDetailOpen(true)
@@ -100,17 +99,11 @@ function App() {
             <p className="eyebrow">{routeInfo.eyebrow}</p>
             <h1>{routeInfo.title}</h1>
           </div>
-          <div className={`data-status ${freshness?.stale ? 'stale' : ''}`} aria-live="polite">
+          <div className="data-status" aria-live="polite">
             <div className="status-summary">
               <span className={`status-pill ${error ? 'error' : loading ? 'loading' : ''}`}>
-                <i aria-hidden="true" /> {loading ? 'Loading latest data' : error ? 'Sheet unavailable' : freshness?.status || 'Google Sheet connected'}
+                <i aria-hidden="true" /> {loading ? 'Checking Google Sheet' : error ? 'Sheet unavailable' : 'Current Sheet data loaded'}
               </span>
-              {freshness && (
-                <span className="freshness-lines">
-                  <strong>{freshness.source}</strong>
-                  <small>{freshness.retrieved}</small>
-                </span>
-              )}
             </div>
             <button className="refresh-button" type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}>
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6v5h-5 M4 18v-5h5 M18.5 9A7 7 0 0 0 6 6.5L4 9 M5.5 15A7 7 0 0 0 18 17.5l2-2.5" /></svg>
