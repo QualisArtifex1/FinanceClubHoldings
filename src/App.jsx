@@ -174,7 +174,7 @@ function Sidebar({ route }) {
     <p className="nav-label">THE INVESTMENT DESK</p>
     <nav aria-label="Dashboard sections">{Object.entries(ROUTES).map(([key, item], index) =>
       <a key={key} href={`#${key}`} className={route === key ? 'active' : ''} aria-current={route === key ? 'page' : undefined}>
-        <NavIcon name={key}/><span>{item.label}</span><small>0{index+1}</small>
+        <NavIcon name={key}/><span>{item.label}</span><small aria-hidden="true">0{index+1}</small>
       </a>
     )}</nav>
     <div className="sidebar-mission"><span className="mission-mark" aria-hidden="true">CC</span><p>Investing in<br/><em>what comes next.</em></p><span>Built on curiosity.<br/>Managed with conviction.</span></div>
@@ -397,12 +397,12 @@ function ConcentrationPanel({ holdings, summary }) {
           return (
             <div className="bar-row" key={holding.symbol}>
               <div><strong>{holding.symbol}</strong><span>{holding.name}</span><b>{weight.toFixed(1)}%</b></div>
-              <div className="bar-track"><i style={{ width: `${Math.min(weight, 100)}%` }} /></div>
+              <div className="bar-track"><i style={{ width: `${Math.min((weight / Math.max(weightOf(top[0], summary), 1)) * 100, 100)}%` }} /></div>
             </div>
           )
         })}
       </div>
-      <p className="source-note">The five largest positions represent {summary.topFiveWeight.toFixed(1)}% of the portfolio.</p>
+      <p className="source-note">The five largest positions represent {summary.topFiveWeight.toFixed(1)}% of the portfolio. Bars are scaled to the largest position.</p>
     </section>
   )
 }

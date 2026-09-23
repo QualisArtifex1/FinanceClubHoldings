@@ -38,6 +38,11 @@ try {
   await page.getByRole('button',{name:'Close holding details'}).click()
   assert.equal(await page.locator('.detail-panel.open').count(),0)
   assert.deepEqual(errors,[], 'No browser runtime errors')
+  await page.setViewportSize({width:1440,height:1100})
+  await page.goto('https://htmlpreview.github.io/?https://raw.githubusercontent.com/QualisArtifex1/FinanceClubHoldings/codex/premium-redesign/preview.html', {waitUntil:'networkidle',timeout:60000})
+  await page.locator('.capital-value').waitFor({timeout:60000})
+  await page.screenshot({path:'preview-assets/hosted-preview.png',fullPage:false})
+  assert.ok(await page.locator('.capital-value').isVisible(), 'Hosted preview must render live data')
   await writeFile('preview-assets/checks.json', JSON.stringify({passed:true,checks:['Live Google Sheet','Original sheet link','Holdings search','Holding details','Two-position comparison','Keyboard dismissal','Research and benchmark navigation','Mobile viewport','Mobile detail dismissal','No runtime errors']},null,2))
 } finally {
   await browser.close()
