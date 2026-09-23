@@ -8,20 +8,20 @@ export const SHEETS = {
 }
 
 export const SECTOR_COLORS = {
-  'Information Technology': '#004F9E',
-  'Consumer Staples': '#C9A978',
-  'Consumer Discretionary': '#FFC20D',
-  'Health Care': '#ED282C',
-  Financials: 'rgba(0, 79, 158, .78)',
-  Energy: 'rgba(201, 169, 120, .78)',
-  'Communication Services': 'rgba(255, 194, 13, .72)',
-  Utilities: 'rgba(237, 40, 44, .72)',
-  'Real Estate': 'rgba(0, 79, 158, .56)',
-  Industrials: 'rgba(201, 169, 120, .56)',
-  Materials: 'rgba(255, 194, 13, .52)',
-  Fund: 'rgba(237, 40, 44, .52)',
-  Cash: 'rgba(0, 79, 158, .32)',
-  Unknown: 'rgba(0, 0, 0, .36)',
+  'Information Technology': '#254d60',
+  'Consumer Staples': '#bea778',
+  'Consumer Discretionary': '#8da59c',
+  'Health Care': '#6e858b',
+  Financials: '#8a9d73',
+  Energy: '#ad937d',
+  'Communication Services': '#8c7896',
+  Utilities: '#697e66',
+  'Real Estate': '#979376',
+  Industrials: '#b7c7be',
+  Materials: '#c0b8a1',
+  Fund: '#809ba5',
+  Cash: '#d8dccd',
+  Unknown: '#acb3ae',
 }
 
 export function parseCsv(text) {

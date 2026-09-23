@@ -1,0 +1,66 @@
+name: Premium redesign cloud preview
+
+on:
+  push:
+    branches: [codex/premium-redesign]
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'package*.json'
+      - 'scripts/**'
+      - '.github/workflows/design-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: premium-design-preview
+  cancel-in-progress: true
+
+jobs:
+  build-and-check:
+    if: github.ref == 'refs/heads/codex/premium-redesign'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: node scripts/build-preview.mjs
+      - run: npm install --no-save --package-lock=false playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Check live data and responsive interactions
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/finance-preview.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:4173/preview.html > /dev/null; then break; fi
+            sleep 1
+          done
+          node scripts/check-preview.mjs
+      - name: Save reviewable preview and screenshots on design branch
+        if: always()
+        run: |
+          if [ -f preview.html ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add preview.html
+            if [ -d preview-assets ]; then git add preview-assets; fi
+            if ! git diff --cached --quiet; then
+              git commit -m "Build premium design preview and browser screenshots"
+              git push origin HEAD:codex/premium-redesign
+            fi
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: premium-design-preview
+          path: |
+            preview.html
+            preview-assets/
+            dist/
