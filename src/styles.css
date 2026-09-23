@@ -22,3 +22,5 @@
 
 /* Keep every sector visible without overextending the overview. */
 @media(min-width:951px){.sector-row{grid-template-columns:minmax(0,1fr) 32px 53px;gap:8px;padding:7px 0;min-height:27px;font-size:10px}.sector-row>span{grid-column:auto;padding-left:0;font-size:8px;text-align:right}.sector-row strong{font-size:9px}.bar-row>div:first-child{font-size:11px}.bar-row span{font-size:10px}}
+
+.comparison-dialog{margin:0;color:var(--ink)}.comparison-dialog::backdrop{background:#071e2b88}

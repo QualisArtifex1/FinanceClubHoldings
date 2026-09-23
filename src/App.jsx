@@ -564,16 +564,13 @@ function CompareDock({ holdings, onOpen, onRemove, onClear }) {
 }
 
 function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
+  const dialogRef = useRef(null)
   const closeRef = useRef(null)
   useEffect(() => {
-    if (!open) return undefined
-    closeRef.current?.focus()
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
+    const dialog = dialogRef.current
+    if (open && holdings.length >= 2 && dialog && !dialog.open) dialog.showModal()
+    return () => { if (dialog?.open) dialog.close() }
+  }, [open, holdings.length])
 
   if (!open || holdings.length < 2) return null
   const rows = [
@@ -591,8 +588,7 @@ function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
 
   return (
     <>
-      <button className="comparison-backdrop" type="button" aria-hidden="true" tabIndex="-1" onClick={onClose} />
-      <section className="comparison-dialog" role="dialog" aria-modal="true" aria-labelledby="comparison-title">
+      <dialog ref={dialogRef} className="comparison-dialog" aria-labelledby="comparison-title" onCancel={(event) => { event.preventDefault(); onClose() }}>
         <header>
           <div><span className="eyebrow">Side-by-side review</span><h2 id="comparison-title">Compare holdings</h2></div>
           <button className="dialog-close" type="button" onClick={onClose} ref={closeRef} aria-label="Close comparison">×</button>
@@ -625,7 +621,7 @@ function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
             <a key={holding.symbol} href={yahooFinanceUrl(holding.symbol)} target="_blank" rel="noopener noreferrer">Research {holding.symbol} on Yahoo Finance <span aria-hidden="true">↗</span></a>
           ))}
         </footer>
-      </section>
+      </dialog>
     </>
   )
 }
@@ -633,7 +629,7 @@ function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
 function HoldingDetail({ holding, total, open = false, onClose }) {
   const closeRef = useRef(null)
   useEffect(() => {
-    if (!open) return undefined
+    if (!open || !window.matchMedia('(max-width: 950px)').matches) return undefined
     closeRef.current?.focus()
     const onKeyDown = (event) => {
       if (event.key === 'Escape') onClose?.()

@@ -12,9 +12,9 @@ A static, student-friendly dashboard for the Detroit Catholic Central Finance Cl
 - Portfolio sector allocation and SCHD sector-tilt comparison
 - Research priorities based on position size and unrealized outcomes
 - Student investment-memo prompts and a built-in finance glossary
-- Separate source-update and retrieval timestamps, including an old-source warning
+- Visible Google Sheet source link and retrieval timestamp
 - Honest loading, partial-data, refresh, and failure states
-- Official Detroit Catholic Central crest, primary blue, gold accent, and approved typography roles
+- Detroit Catholic Central crest with a navy, ivory, and muted gold visual system; DM Sans and Libre Caslon Display typography
 
 ## Google Sheet tabs
 
@@ -54,3 +54,11 @@ In the repository settings, set **Pages → Build and deployment → Source** to
 Annual balances are not investment returns because contributions and withdrawals affect them. A valid time-weighted return and historical portfolio-versus-SCHD chart require dated transaction or cash-flow data plus historical benchmark values. Until those exist in the Sheet, the dashboard labels the annual series as balance history and limits SCHD analysis to sector allocation.
 
 This website is an educational tool and is not investment advice. Prices and fundamentals may be delayed.
+
+## Cloud design review
+
+The `codex/premium-redesign` branch includes a workflow that runs the unit tests and production build, then checks live Google Sheet loading and desktop/mobile interactions in Chromium. It saves a standalone `preview.html`, screenshots, and validation results on the design branch. The workflow is restricted to that branch and does not deploy or replace the live GitHub Pages site.
+
+Preview: https://htmlpreview.github.io/?https://raw.githubusercontent.com/QualisArtifex1/FinanceClubHoldings/codex/premium-redesign/preview.html
+
+The standalone preview contains the same production bundle, styles, and embedded crest. It still loads live portfolio data directly from the existing Google Sheet. Google Fonts and the HTML Preview viewer require network access.

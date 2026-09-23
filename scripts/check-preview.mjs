@@ -22,6 +22,7 @@ try {
   await page.locator('.compare-toggle').nth(1).click()
   await page.getByRole('button',{name:'Compare holdings',exact:true}).click()
   await page.getByRole('dialog',{name:'Compare holdings'}).waitFor()
+  await page.getByRole('button',{name:'Close comparison'}).focus()
   await page.keyboard.press('Escape')
   await page.getByRole('dialog').waitFor({state:'detached'})
   await page.getByRole('link',{name:'Research',exact:true}).click()
