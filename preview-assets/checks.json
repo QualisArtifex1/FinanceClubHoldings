@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "Live Google Sheet",
+    "Original sheet link",
+    "Holdings search",
+    "Holding details",
+    "Two-position comparison",
+    "Keyboard dismissal",
+    "Research and benchmark navigation",
+    "Mobile viewport",
+    "Mobile detail dismissal",
+    "No runtime errors"
+  ]
+}

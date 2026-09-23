@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { loadDashboardData, SECTOR_COLORS, summarize } from './data'
+import { loadDashboardData, SECTOR_COLORS, SHEET_ID, summarize } from './data'
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const preciseCurrency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
 
 const ROUTES = {
-  portfolio: { label: 'Portfolio', eyebrow: 'Portfolio overview', title: 'Understand the club’s portfolio at a glance' },
-  holdings: { label: 'Holdings', eyebrow: 'Holdings workbench', title: 'Explore every position and its role' },
-  benchmark: { label: 'Benchmark', eyebrow: 'Benchmark review', title: 'Compare diversification with SCHD' },
-  research: { label: 'Research', eyebrow: 'Research desk', title: 'Turn portfolio data into better questions' },
+  portfolio: { label: 'Overview', eyebrow: 'The portfolio', title: 'Capital with purpose.' },
+  holdings: { label: 'Holdings', eyebrow: 'Our investments', title: 'Every position. A perspective.' },
+  benchmark: { label: 'Benchmark', eyebrow: 'A broader perspective', title: 'Conviction in context.' },
+  research: { label: 'Research', eyebrow: 'The research desk', title: 'Better questions. Better decisions.' },
 }
 
 const GLOSSARY = [
@@ -78,7 +78,7 @@ function App() {
       .catch((reason) => {
         if (reason.name !== 'AbortError') setError(reason.message || 'The Google Sheet could not be loaded.')
       })
-      .finally(() => setLoading(false))
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [refreshKey])
 
@@ -93,16 +93,16 @@ function App() {
   return (
     <div className="app-shell">
       <Sidebar route={route} />
-      <main id="main-content" className="main-content" tabIndex="-1">
+      <main id="main-content" className="main-content" tabIndex="-1"><div className="utility-bar"><span>DETROIT CATHOLIC CENTRAL <i>/</i> STUDENT INVESTMENT FUND</span><a href={`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`} target="_blank" rel="noopener noreferrer">View source sheet <span aria-hidden="true">↗</span></a></div><div className="workspace">
         <header className="page-header">
           <div>
             <p className="eyebrow">{routeInfo.eyebrow}</p>
-            <h1>{routeInfo.title}</h1>
+            <h1>{routeInfo.title}</h1><p className="page-intro">{route === 'portfolio' ? 'Student-led investing. A lasting impact.' : route === 'holdings' ? 'Explore the businesses behind the portfolio.' : route === 'benchmark' ? 'See where our allocation differs from SCHD.' : 'Bring a sharper perspective to the next club meeting.'}</p>
           </div>
           <div className="data-status" aria-live="polite">
             <div className="status-summary">
               <span className={`status-pill ${error ? 'error' : loading ? 'loading' : ''}`}>
-                <i aria-hidden="true" /> {loading ? 'Checking Google Sheet' : error ? 'Sheet unavailable' : 'Current Sheet data loaded'}
+                <i aria-hidden="true" /> {loading ? 'Checking Google Sheet' : error ? 'Sheet unavailable' : 'Sheet connected'}
               </span>
             </div>
             <button className="refresh-button" type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}>
@@ -160,35 +160,26 @@ function App() {
             <LearningFooter />
           </>
         )}
-      </main>
+      </div></main>
     </div>
   )
 }
 
 function Sidebar({ route }) {
-  return (
-    <aside className="sidebar" aria-label="Dashboard navigation">
-      <div className="brand">
-        <img src="./dcc-crest.png" alt="Detroit Catholic Central crest" />
-        <div>
-          <span>Detroit Catholic Central</span>
-          <strong>Finance Club</strong>
-        </div>
-      </div>
-      <nav aria-label="Dashboard sections">
-        {Object.entries(ROUTES).map(([key, item]) => (
-          <a key={key} href={`#${key}`} className={route === key ? 'active' : ''} aria-current={route === key ? 'page' : undefined}>
-            <NavIcon name={key} />
-            <span>{item.label}</span>
-          </a>
-        ))}
-      </nav>
-      <div className="sidebar-note">
-        <strong>Student-managed portfolio</strong>
-        <span>Benchmark: SCHD</span>
-      </div>
-    </aside>
-  )
+  return <aside className="sidebar" aria-label="Dashboard navigation">
+    <a className="brand" href="#portfolio" aria-label="Finance Club overview">
+      <img src="./dcc-crest.png" alt="Detroit Catholic Central crest" />
+      <div><span>Catholic Central</span><strong>Finance Club<span className="brand-period">.</span></strong></div>
+    </a>
+    <p className="nav-label">THE INVESTMENT DESK</p>
+    <nav aria-label="Dashboard sections">{Object.entries(ROUTES).map(([key, item], index) =>
+      <a key={key} href={`#${key}`} className={route === key ? 'active' : ''} aria-current={route === key ? 'page' : undefined}>
+        <NavIcon name={key}/><span>{item.label}</span><small aria-hidden="true">0{index+1}</small>
+      </a>
+    )}</nav>
+    <div className="sidebar-mission"><span className="mission-mark" aria-hidden="true">CC</span><p>Investing in<br/><em>what comes next.</em></p><span>Built on curiosity.<br/>Managed with conviction.</span></div>
+    <div className="sidebar-note"><i aria-hidden="true"/><div><strong>Student-managed portfolio</strong><span>Detroit Catholic Central</span></div></div>
+  </aside>
 }
 
 function NavIcon({ name }) {
@@ -230,48 +221,34 @@ function ErrorState({ message, onRetry }) {
 }
 
 function PortfolioView({ data, summary, selectedHolding, onSelect, detailOpen, onCloseDetail }) {
-  return (
-    <div className="page-stack">
-      <KpiGrid summary={summary} holdings={data.holdings} />
-      <section className="insight-strip" aria-label="Portfolio health indicators">
-        <Insight label="Largest position" value={data.holdings[0]?.symbol || '—'} detail={`${weightOf(data.holdings[0], summary).toFixed(1)}% of portfolio`} />
-        <Insight label="Top five concentration" value={`${summary.topFiveWeight.toFixed(1)}%`} detail="Combined portfolio weight" />
-        <Insight label="Cash reserve" value={`${ratio(summary.cash, summary.portfolioValue).toFixed(1)}%`} detail={currency.format(summary.cash)} />
-      </section>
-      <BalanceChart points={data.performance} />
-      <div className="two-column">
-        <AllocationPanel sectors={summary.sectors} benchmark={data.benchmark} />
-        <ConcentrationPanel holdings={data.holdings} summary={summary} />
+  const positive = summary.unrealizedGain >= 0
+  return <div className="page-stack">
+    <section className="capital-panel" aria-label="Portfolio overview">
+      <div className="capital-summary">
+        <div className="capital-label"><span className="gold-line"/> PORTFOLIO VALUE</div>
+        <strong className="capital-value">{currency.format(summary.portfolioValue)}</strong>
+        <div className={`capital-gain ${positive ? 'up' : 'down'}`}><span aria-hidden="true">{positive ? '↗' : '↘'}</span> {positive ? '+' : ''}{currency.format(summary.unrealizedGain)} <span>unrealized gain / loss</span></div>
+        <p>A portfolio built by students.<br/>A foundation for the future.</p>
+        <a className="capital-link" href="#holdings">Explore our holdings <span aria-hidden="true">↗</span></a>
+        <div className="capital-foot"><span><b>{data.holdings.length}</b> positions</span><span><b>{summary.sectors.length}</b> sectors</span><span><b>{ratio(summary.cash, summary.portfolioValue).toFixed(1)}%</b> cash</span></div>
       </div>
-      <div className="content-with-detail">
-        <HoldingsTable holdings={data.holdings.slice(0, 10)} total={summary.portfolioValue} selected={selectedHolding?.symbol} onSelect={onSelect} compact />
-        <HoldingDetail holding={selectedHolding} total={summary.portfolioValue} open={detailOpen} onClose={onCloseDetail} />
-      </div>
-    </div>
-  )
-}
-
-function KpiGrid({ summary, holdings }) {
-  return (
-    <section className="summary-layout" aria-label="Portfolio summary">
-      <article className="portfolio-hero">
-        <span>Portfolio value</span>
-        <strong>{currency.format(summary.portfolioValue)}</strong>
-        <p>Current market value of holdings from the club’s Google Sheet.</p>
-        <div className="hero-meta">
-          <span><b>{holdings.length}</b> positions</span>
-          <span><b>{summary.sectors.length}</b> sectors</span>
-          <span><b>{ratio(summary.cash, summary.portfolioValue).toFixed(1)}%</b> cash</span>
-        </div>
-      </article>
-      <div className="kpi-grid">
-        <Kpi label="Total club value" value={currency.format(summary.totalClubValue)} note="Portfolio plus endowment" />
-        <Kpi label="Unrealized gain" value={`${summary.unrealizedGain >= 0 ? '+' : ''}${currency.format(summary.unrealizedGain)}`} note="Market value minus cost basis" tone={summary.unrealizedGain >= 0 ? 'positive' : 'negative'} />
-        <Kpi label="Endowment" value={currency.format(summary.endowmentValue)} note="From Club Settings tab" />
-        <Kpi label="Scholarships distributed" value={currency.format(summary.scholarshipDistributions)} note="Tracked separately from club value" />
-      </div>
+      <div className="capital-chart"><BalanceChart points={data.performance}/></div>
     </section>
-  )
+    <section className="stat-grid" aria-label="Club financial summary">
+      <Kpi label="Total club value" value={currency.format(summary.totalClubValue)} note="Portfolio + endowment"/>
+      <Kpi label="Endowment" value={Object.hasOwn(data.settings, 'endowmentValue') ? currency.format(summary.endowmentValue) : '—'} note="Capital for the long term"/>
+      <Kpi label="Net contributions" value={data.settings.netContributions || data.settings.corpus ? currency.format(summary.corpus) : '—'} note="Cumulative contributed capital"/>
+      <Kpi label="Scholarships distributed" value={Object.hasOwn(data.settings, 'scholarshipDistributions') ? currency.format(summary.scholarshipDistributions) : '—'} note="Investing beyond the portfolio"/>
+    </section>
+    <div className="section-divider"><div><span className="eyebrow">THE BIG PICTURE</span><h2>Inside the portfolio</h2></div><a href="#benchmark">Explore the benchmark <span aria-hidden="true">↗</span></a></div>
+    <div className="two-column"><AllocationPanel sectors={summary.sectors} benchmark={data.benchmark}/><ConcentrationPanel holdings={data.holdings} summary={summary}/></div>
+    <div className="section-divider"><div><span className="eyebrow">OUR CONVICTIONS</span><h2>Leading positions</h2></div><a href="#holdings">View all holdings <span aria-hidden="true">↗</span></a></div>
+    <div className="content-with-detail">
+      <HoldingsTable holdings={data.holdings.slice(0, 6)} total={summary.portfolioValue} selected={selectedHolding?.symbol} onSelect={onSelect} compact/>
+      <HoldingDetail holding={selectedHolding} total={summary.portfolioValue} open={detailOpen} onClose={onCloseDetail}/>
+    </div>
+    <div className="retrieval-note">Retrieved from the club’s Google Sheet {data.fetchedAt.toLocaleString()}. Prices may be delayed.</div>
+  </div>
 }
 
 function Kpi({ label, value, note, tone = '' }) {
@@ -341,7 +318,7 @@ function BalanceChart({ points }) {
               <text x={plot.left - 12} y={y(tick) + 4} textAnchor="end">{currency.format(tick)}</text>
             </g>
           ))}
-          <polyline points={polyline} className="balance-area-line" />
+          <defs><linearGradient id="balance-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="currentColor" stopOpacity=".2"/><stop offset="100%" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs><polygon points={`${x(0)},${height - plot.bottom} ${polyline} ${x(visible.length - 1)},${height - plot.bottom}`} fill="url(#balance-fill)"/><polyline points={polyline} className="balance-area-line" />
           {visible.map((point, index) => (
             <g
               className="chart-point"
@@ -396,7 +373,7 @@ function AllocationPanel({ sectors, benchmark }) {
           <span><strong>{sectors.length}</strong>sectors</span>
         </div>
         <div className="sector-list">
-          {sectors.slice(0, 8).map((sector) => (
+          {sectors.map((sector) => (
             <div className="sector-row" key={sector.sector}>
               <div><i style={{ background: sector.color }} aria-hidden="true" /><strong>{sector.sector}</strong></div>
               <b>{sector.weight.toFixed(1)}%</b>
@@ -420,12 +397,12 @@ function ConcentrationPanel({ holdings, summary }) {
           return (
             <div className="bar-row" key={holding.symbol}>
               <div><strong>{holding.symbol}</strong><span>{holding.name}</span><b>{weight.toFixed(1)}%</b></div>
-              <div className="bar-track"><i style={{ width: `${Math.min(weight * 8, 100)}%` }} /></div>
+              <div className="bar-track"><i style={{ width: `${Math.min((weight / Math.max(weightOf(top[0], summary), 1)) * 100, 100)}%` }} /></div>
             </div>
           )
         })}
       </div>
-      <p className="source-note">The five largest positions represent {summary.topFiveWeight.toFixed(1)}% of the portfolio.</p>
+      <p className="source-note">The five largest positions represent {summary.topFiveWeight.toFixed(1)}% of the portfolio. Bars are scaled to the largest position.</p>
     </section>
   )
 }
@@ -587,16 +564,13 @@ function CompareDock({ holdings, onOpen, onRemove, onClear }) {
 }
 
 function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
+  const dialogRef = useRef(null)
   const closeRef = useRef(null)
   useEffect(() => {
-    if (!open) return undefined
-    closeRef.current?.focus()
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
+    const dialog = dialogRef.current
+    if (open && holdings.length >= 2 && dialog && !dialog.open) dialog.showModal()
+    return () => { if (dialog?.open) dialog.close() }
+  }, [open, holdings.length])
 
   if (!open || holdings.length < 2) return null
   const rows = [
@@ -614,8 +588,7 @@ function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
 
   return (
     <>
-      <button className="comparison-backdrop" type="button" aria-hidden="true" tabIndex="-1" onClick={onClose} />
-      <section className="comparison-dialog" role="dialog" aria-modal="true" aria-labelledby="comparison-title">
+      <dialog ref={dialogRef} className="comparison-dialog" aria-labelledby="comparison-title" onCancel={(event) => { event.preventDefault(); onClose() }}>
         <header>
           <div><span className="eyebrow">Side-by-side review</span><h2 id="comparison-title">Compare holdings</h2></div>
           <button className="dialog-close" type="button" onClick={onClose} ref={closeRef} aria-label="Close comparison">×</button>
@@ -648,7 +621,7 @@ function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
             <a key={holding.symbol} href={yahooFinanceUrl(holding.symbol)} target="_blank" rel="noopener noreferrer">Research {holding.symbol} on Yahoo Finance <span aria-hidden="true">↗</span></a>
           ))}
         </footer>
-      </section>
+      </dialog>
     </>
   )
 }
@@ -656,7 +629,7 @@ function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
 function HoldingDetail({ holding, total, open = false, onClose }) {
   const closeRef = useRef(null)
   useEffect(() => {
-    if (!open || !window.matchMedia('(max-width: 900px)').matches) return undefined
+    if (!open || !window.matchMedia('(max-width: 950px)').matches) return undefined
     closeRef.current?.focus()
     const onKeyDown = (event) => {
       if (event.key === 'Escape') onClose?.()
@@ -829,6 +802,7 @@ function weightOf(holding, summary) {
 
 function sectorGradient(sectors) {
   let current = 0
+  if (!sectors.length) return '#e7e7e2'
   const stops = sectors.map((sector) => {
     const start = current
     current += sector.weight
