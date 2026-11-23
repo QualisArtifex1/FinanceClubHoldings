@@ -9,6 +9,7 @@ import SimulatorView from './SimulatorView'
 import LearnView from './LearnView'
 import { HoldingPitch, PitchArchive, PitchContext } from './Pitches'
 import PerformancePanel from './Performance'
+import EconomyView, { EconomicPulseStrip } from './EconomyView'
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const preciseCurrency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
@@ -19,6 +20,7 @@ const ROUTES = {
   story: { label: 'Our Story', eyebrow: 'Scroll to explore', title: 'Our portfolio story' },
   holdings: { label: 'Holdings', eyebrow: 'Holdings workbench', title: 'Holdings' },
   benchmark: { label: 'Benchmark', eyebrow: 'Benchmark review', title: 'Compared with SCHD' },
+  economy: { label: 'Economy', eyebrow: 'Economic indicators', title: 'The economy at a glance' },
   simulator: { label: 'What If?', eyebrow: 'Simulator', title: 'Test a trade before the club makes it' },
   research: { label: 'Research', eyebrow: 'Research desk', title: 'Research' },
   learn: { label: 'Learn', eyebrow: 'Lessons', title: 'Learn with our portfolio' },
@@ -233,6 +235,7 @@ function App() {
               />
             )}
             {route === 'story' && <StoryView data={data} summary={summary} />}
+            {route === 'economy' && <EconomyView data={data} />}
             {route === 'simulator' && <SimulatorView data={data} summary={summary} />}
             {route === 'learn' && <LearnView data={data} summary={summary} lessonId={subroute} />}
             <LearningFooter />
@@ -285,6 +288,7 @@ function NavIcon({ name }) {
     story: 'M4 5h7a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4z M20 5h-7 M20 5v13h-7',
     simulator: 'M4 7h10 M18 7h2 M4 17h4 M12 17h8 M16 5v4 M10 15v4',
     learn: 'M2 9l10-5 10 5-10 5z M6 11v5c3 2 9 2 12 0v-5 M22 9v6',
+    economy: 'M12 3v2 M12 19v2 M4 12h2 M18 12h2 M12 12l4-4 M5 18a9 9 0 1 1 14 0',
   }
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -331,6 +335,7 @@ function PortfolioView({ data, summary, selectedHolding, onSelect, detailOpen, o
         <Insight label="Top five concentration" value={`${summary.topFiveWeight.toFixed(1)}%`} detail="Combined portfolio weight" />
         <Insight label="Cash reserve" value={`${ratio(summary.cash, summary.portfolioValue).toFixed(1)}%`} detail={currency.format(summary.cash)} />
       </section>
+      <EconomicPulseStrip economy={data.economy} />
       {data.returns.length > 0 && <PerformancePanel returns={data.returns} />}
       <TodayMovers holdings={data.holdings} usedSample={data.usedSample} onSelect={onSelect} />
       <BalanceChart points={data.performance} hasReturns={data.returns.length > 0} />

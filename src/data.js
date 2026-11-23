@@ -9,10 +9,12 @@ export const SHEETS = {
   pitches: '202600106',
   returns: '202600107',
   risk: '202600108',
+  economy: '202600109',
+  economyData: '202600110',
 }
 
 // Tabs the site can run without (no warning if they are missing).
-const OPTIONAL_TABS = new Set(['videos', 'pitches', 'returns', 'risk'])
+const OPTIONAL_TABS = new Set(['videos', 'pitches', 'returns', 'risk', 'economy', 'economyData'])
 
 export const SECTOR_COLORS = {
   'Information Technology': '#004F9E',
@@ -290,6 +292,46 @@ export function riskSentence(drawdown, indexes = INDEXES) {
   return `${lead} ${numbers}`
 }
 
+// Economy tab: one row per indicator. EconomyData: two columns per indicator
+// (date, value), in the same order as the Economy rows, imported from FRED.
+function daysBetween(a, b) {
+  const x = parseSheetDate(a)
+  const y = parseSheetDate(b)
+  return x && y ? (Date.UTC(y.y, y.m - 1, y.d) - Date.UTC(x.y, x.m - 1, x.d)) / 86400000 : null
+}
+
+export function parseEconomy(metaCsv, dataCsv) {
+  const meta = recordsFromCsv(metaCsv)
+    .map((record) => ({
+      id: String(record.fredid || '').trim().toUpperCase(),
+      label: String(record.label || '').trim(),
+      group: String(record.group || '').trim() || 'Other',
+      units: String(record.units || '').trim(),
+      frequency: String(record.frequency || '').trim(),
+    }))
+  const grid = parseCsv(dataCsv)
+  return meta
+    .map((indicator, index) => {
+      if (!indicator.id) return null
+      const history = grid.slice(1)
+        .map((row) => ({ date: String(row[index * 2] || '').trim(), value: numberFrom(row[index * 2 + 1], null) }))
+        .filter((point) => parseSheetDate(point.date) && Number.isFinite(point.value))
+      const latest = history.at(-1)
+      const previous = history.at(-2)
+      const yearAgo = latest ? [...history].reverse().find((point) => daysBetween(point.date, latest.date) >= 365) : null
+      return {
+        ...indicator,
+        history,
+        latest: latest?.value ?? null,
+        latestDate: latest?.date || '',
+        previous: previous?.value ?? null,
+        previousDate: previous?.date || '',
+        yearAgo: yearAgo?.value ?? null,
+      }
+    })
+    .filter(Boolean)
+}
+
 async function fetchSheet(gid, signal) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}&cacheBust=${Date.now()}`
   const response = await fetch(url, { cache: 'no-store', signal })
@@ -322,6 +364,7 @@ export async function loadDashboardData(signal) {
     pitches: csv.pitches ? parsePitches(csv.pitches) : [],
     returns: csv.returns ? parseReturns(csv.returns) : [],
     risk: csv.risk ? parseRisk(csv.risk) : {},
+    economy: csv.economy ? parseEconomy(csv.economy, csv.economyData || '') : [],
     errors,
     fetchedAt: new Date(),
   }

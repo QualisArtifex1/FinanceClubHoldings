@@ -118,3 +118,32 @@ describe('portfolio beta and dividend yield', () => {
     expect(summary.dividendIncome).toBeCloseTo(30)
   })
 })
+
+describe('Economy tabs', () => {
+  it('pairs each Economy row with its date/value columns and finds latest, previous and year-ago values', async () => {
+    const { parseEconomy } = await import('./data')
+    const meta = 'fredId,label,group,units,transform,frequency\nUMCSENT,Consumer Sentiment,Sentiment,index,,Monthly\nT10Y2Y,Yield curve,Leading,%,,Daily'
+    const data = [
+      'observation_date,UMCSENT,observation_date,T10Y2Y',
+      '2025-09-01,58.2,2025-11-18,0.55',
+      '2025-10-01,53.6,2025-11-19,',
+      '2026-09-01,55.0,2026-11-19,0.31',
+      '2026-10-01,48.0,2026-11-20,0.29',
+      ',,,',
+    ].join('\n')
+    const [sentiment, curve] = parseEconomy(meta, data)
+    expect(sentiment.latest).toBe(48)
+    expect(sentiment.previous).toBe(55)
+    expect(sentiment.yearAgo).toBe(53.6)
+    expect(curve.latest).toBe(0.29)
+    expect(curve.history).toHaveLength(3) // the blank value is skipped
+    expect(curve.yearAgo).toBe(0.55)
+  })
+
+  it('returns indicators with no history while the Sheet is still loading', async () => {
+    const { parseEconomy } = await import('./data')
+    const [only] = parseEconomy('fredId,label,group\nVIXCLS,VIX,Sentiment', '#REF!')
+    expect(only.latest).toBeNull()
+    expect(only.history).toEqual([])
+  })
+})

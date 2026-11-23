@@ -6,8 +6,10 @@ import { currency, preciseCurrency, signedPercent } from './live'
 import DashboardMotion from './DashboardMotion'
 import CompoundingMotion from './CompoundingMotion'
 import RebalanceMotion from './RebalanceMotion'
+import IndicatorsMotion from './IndicatorsMotion'
+import { describe as describeIndicator } from './economy'
 
-const MOTION = { dashboard: DashboardMotion, compounding: CompoundingMotion, rebalancing: RebalanceMotion }
+const MOTION = { dashboard: DashboardMotion, compounding: CompoundingMotion, rebalancing: RebalanceMotion, indicators: IndicatorsMotion }
 
 // Built-in lessons. The Sheet's "Videos" tab can change each lesson's title,
 // order, length, credit and video (paste a YouTube link) without code changes.
@@ -18,6 +20,7 @@ const BASE_LESSONS = [
   { id: 'valuation', title: 'Price vs. profit: the P/E ratio', length: '4:15', summary: 'P/E tells you how much investors pay for each $1 of a company’s yearly profit.', video: { youtube: 'J33ObDTsiOU', credit: 'Charles Schwab · “P/E Ratio Basics”' } },
   { id: 'compounding', title: 'How compounding works', length: '1:00', summary: 'Growth that stays invested earns growth of its own. Time turns small amounts into big ones.', video: { motion: 'compounding', credit: 'DCC Finance Club motion graphic' } },
   { id: 'rebalancing', title: 'Why we rebalance', length: '1:00', summary: 'Winners quietly grow into bigger risks. Rebalancing brings the portfolio back to the plan.', video: { motion: 'rebalancing', credit: 'DCC Finance Club motion graphic · uses our live data' } },
+  { id: 'indicators', title: 'Reading leading indicators', length: '1:00', summary: 'Which economic signals turn before the economy does, and what they say right now.', video: { motion: 'indicators', credit: 'DCC Finance Club motion graphic · live data from FRED' } },
   { id: 'dashboard', title: 'Reading our dashboard', length: '1:00', summary: 'Value, cost basis, weight, tilt, and why balance isn’t return — in one minute, using our real numbers.', video: { motion: 'dashboard', credit: 'DCC Finance Club motion graphic · uses our live data' } },
 ]
 
@@ -95,6 +98,7 @@ export default function LearnView({ data, summary, lessonId }) {
           {current === 'valuation' && <PeBars holdings={data.holdings} />}
           {current === 'compounding' && <CompoundCalculator />}
           {current === 'rebalancing' && <RebalanceCheck summary={summary} />}
+          {current === 'indicators' && <IndicatorCheck economy={data.economy || []} />}
           {current === 'dashboard' && <TiltCheck summary={summary} benchmark={data.benchmark} />}
         </section>
         {index < LESSONS.length - 1 && <a className="next-lesson" href={`#learn/${LESSONS[index + 1].id}`}>Next: {LESSONS[index + 1].title} →</a>}
@@ -110,6 +114,7 @@ function tryTitle(id) {
     valuation: 'Compare P/E across our holdings',
     compounding: 'Build your own compounding curve',
     rebalancing: 'Set a sector cap and rebalance our portfolio',
+    indicators: 'Quick check: read today’s signals',
     dashboard: 'Quick check: read the benchmark',
   }[id]
 }
@@ -408,5 +413,29 @@ function RebalanceCheck({ summary }) {
       </p>
       <p className="source-note">Weights here exclude cash and funds. Real rebalancing also weighs trading costs and taxes, and the club decides together.</p>
     </div>
+  )
+}
+
+function IndicatorCheck({ economy }) {
+  const items = economy.map(describeIndicator).filter((item) => item.ready && item.group !== 'Context')
+  const options = useMemo(() => {
+    const caution = items.filter((item) => item.signal.tone === 'caution')
+    const calm = items.filter((item) => item.signal.tone === 'ok')
+    const lookFor = caution.length ? 'caution' : 'ok'
+    const target = (caution.length ? caution : calm)[0]
+    const others = items.filter((item) => item.signal.tone !== lookFor).slice(0, 3)
+    if (!target || others.length < 2) return null
+    const list = [target, ...others].sort((a, b) => a.info.short.localeCompare(b.info.short))
+    return { lookFor, target, list }
+  }, [economy]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!options) return <p className="source-note">This activity appears once the Sheet’s Economy tab has data.</p>
+  const { lookFor, target, list } = options
+  return (
+    <QuickCheck
+      question={lookFor === 'caution' ? 'Which of these indicators is flashing caution right now?' : 'Which of these indicators is in healthy territory right now?'}
+      options={list.map((item) => `${item.info.short} (${item.info.format(item.latest)})`)}
+      answer={list.indexOf(target)}
+      explanation={`${target.info.short} reads ${target.info.format(target.latest)}: ${target.signal.label.toLowerCase()}. ${target.signal.note} See every indicator on the Economy page.`}
+    />
   )
 }
