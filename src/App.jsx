@@ -93,7 +93,6 @@ function App() {
     loadDashboardData(controller.signal)
       .then((loaded) => {
         setData(loaded)
-        setSelectedSymbol((current) => current || loaded.holdings.find((holding) => holding.sector !== 'Cash')?.symbol || '')
       })
       .catch((reason) => {
         if (reason.name !== 'AbortError') setError(reason.message || 'The Google Sheet could not be loaded.')
@@ -564,7 +563,7 @@ function HoldingsTable({ holdings, total, selected, onSelect, compact = false, c
                 <td data-label="Market value" className="numeric">{currency.format(holding.marketValue)}</td>
                 <td data-label="Weight" className="numeric">{ratio(holding.marketValue, total).toFixed(1)}%</td>
                 <td data-label="Cost basis" className="numeric">{currency.format(holding.costBasis)}</td>
-                <td data-label="Return" className={`numeric ${holding.gainLossPercent >= 0 ? 'positive' : 'negative'}`}>{percent(holding.gainLossPercent)}</td>
+                <td data-label="Return" className="numeric"><span className={tone(holding.gainLossPercent)}>{percent(holding.gainLossPercent)}</span></td>
                 {onToggleCompare && (
                   <td data-label="Compare" className="compare-cell">
                     <button
@@ -655,11 +654,11 @@ function ComparisonDialog({ holdings, total, open, onClose, onRemove }) {
           <table className="comparison-table">
             <thead><tr><th>Metric</th>{holdings.map((holding) => <th key={holding.symbol}>{holding.symbol}</th>)}</tr></thead>
             <tbody>
-              {rows.map(([label, value, tone]) => (
+              {rows.map(([label, value, kind]) => (
                 <tr key={label}>
                   <th scope="row">{label}</th>
                   {holdings.map((holding) => (
-                    <td key={holding.symbol} className={tone === 'return' ? (holding.gainLossPercent >= 0 ? 'positive' : 'negative') : ''}>{value(holding)}</td>
+                    <td key={holding.symbol}>{kind === 'return' ? <span className={tone(holding.gainLossPercent)}>{value(holding)}</span> : value(holding)}</td>
                   ))}
                 </tr>
               ))}
@@ -688,7 +687,17 @@ function HoldingDetail({ holding, total, open = false, onClose }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open, holding?.symbol, onClose])
 
-  if (!holding) return null
+  if (!holding) {
+    return (
+      <aside className="panel detail-panel detail-empty" aria-label="Holding details">
+        <span aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10.5 18a7.5 7.5 0 1 1 5.3-2.2L21 21" /></svg>
+        </span>
+        <h2>Select a holding</h2>
+        <p>Click any ticker to see its price, weight, return, valuation, and 52-week range here.</p>
+      </aside>
+    )
+  }
   const rangePosition = holding.high52 && holding.low52 && holding.high52 !== holding.low52
     ? ((holding.price - holding.low52) / (holding.high52 - holding.low52)) * 100
     : null
@@ -715,7 +724,7 @@ function HoldingDetail({ holding, total, open = false, onClose }) {
         <div><dt>Market value</dt><dd>{currency.format(holding.marketValue)}</dd></div>
         <div><dt>Shares</dt><dd>{number.format(holding.quantity)}</dd></div>
         <div><dt>Cost basis</dt><dd>{currency.format(holding.costBasis)}</dd></div>
-        <div><dt>Unrealized return</dt><dd className={holding.gainLossPercent >= 0 ? 'positive' : 'negative'}>{percent(holding.gainLossPercent)}</dd></div>
+        <div><dt>Unrealized return</dt><dd className={tone(holding.gainLossPercent)}>{percent(holding.gainLossPercent)}</dd></div>
         <div><dt>P/E</dt><dd>{holding.pe ?? '—'}</dd></div>
         <div><dt>Beta</dt><dd>{holding.beta ?? '—'}</dd></div>
       </dl>
@@ -755,7 +764,7 @@ function BenchmarkView({ data, summary }) {
             <div className="tilt-row" key={item.sector}>
               <strong>{item.sector}</strong>
               <div className="tilt-scale"><i className={item.tilt >= 0 ? 'over' : 'under'} style={{ width: `${Math.min(Math.abs(item.tilt) * 2.1, 50)}%`, [item.tilt >= 0 ? 'left' : 'right']: '50%' }} /></div>
-              <b className={item.tilt >= 0 ? 'positive' : 'negative'}>{percent(item.tilt)}</b>
+              <b className={item.tilt >= 0 ? 'tilt-over' : 'tilt-under'}>{percent(item.tilt)}</b>
               <small>Portfolio {item.portfolio.toFixed(1)}% · SCHD {item.benchmark.toFixed(1)}%</small>
             </div>
           ))}
@@ -803,7 +812,7 @@ function ResearchView({ data, summary, selectedHolding, onSelect, detailOpen, on
           <div className="priority-list">
             {priorities.slice(0, 12).map((holding, index) => (
               <button type="button" key={holding.symbol} onClick={() => onSelect(holding.symbol)} className={selectedHolding?.symbol === holding.symbol ? 'selected' : ''}>
-                <span>{index + 1}</span><strong>{holding.symbol}<small>{holding.name}</small></strong><b>{holding.weight.toFixed(1)}%</b><em className={holding.gainLossPercent >= 0 ? 'positive' : 'negative'}>{percent(holding.gainLossPercent)}</em>
+                <span>{index + 1}</span><strong>{holding.symbol}<small>{holding.name}</small></strong><b>{holding.weight.toFixed(1)}%</b><em className={tone(holding.gainLossPercent)}>{percent(holding.gainLossPercent)}</em>
               </button>
             ))}
           </div>
@@ -840,6 +849,12 @@ function LearningFooter() {
       <details><summary>Finance glossary</summary><dl>{GLOSSARY.map(([term, definition]) => <div key={term}><dt>{term}</dt><dd>{definition}</dd></div>)}</dl></details>
     </footer>
   )
+}
+
+// Gain/loss color class; an exactly-zero change (e.g. cash) stays neutral.
+function tone(value) {
+  if (!Number.isFinite(value) || Math.abs(value) < 0.05) return ''
+  return value > 0 ? 'positive' : 'negative'
 }
 
 function ratio(value, total) {
