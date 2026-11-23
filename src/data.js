@@ -113,6 +113,8 @@ export function parseHoldings(text) {
         pe: numberFrom(record.pe, null),
         eps: numberFrom(record.eps, null),
         dayChangePercent: numberFrom(record.changepct || record.daychangepercent, null),
+        annualDividend: numberFrom(record.annualdividend, null),
+        dividendYield: numberFrom(record.dividendyield, null) ?? (numberFrom(record.annualdividend, null) !== null && price ? (numberFrom(record.annualdividend) / price) * 100 : null),
       }
     })
     .filter(Boolean)
@@ -344,9 +346,25 @@ export function summarize(holdings, settings = {}) {
     .map((sector) => ({ ...sector, weight: portfolioValue ? (sector.value / portfolioValue) * 100 : 0 }))
     .sort((a, b) => b.value - a.value)
 
+  // Average beta, weighted by market value. Cash counts as 0 (it doesn't move
+  // with the market); holdings without a beta (e.g. mutual funds) are left out.
+  const betaRows = holdings.filter((holding) => holding.sector === 'Cash' || Number.isFinite(holding.beta))
+  const betaValue = betaRows.reduce((sum, holding) => sum + holding.marketValue, 0)
+  const beta = betaValue ? betaRows.reduce((sum, holding) => sum + holding.marketValue * (holding.sector === 'Cash' ? 0 : holding.beta), 0) / betaValue : null
+  // Dividend yield, weighted by market value, over holdings with a yield (cash = 0).
+  const yieldRows = holdings.filter((holding) => holding.sector === 'Cash' || Number.isFinite(holding.dividendYield))
+  const yieldValue = yieldRows.reduce((sum, holding) => sum + holding.marketValue, 0)
+  const dividendYield = yieldValue ? yieldRows.reduce((sum, holding) => sum + holding.marketValue * (holding.sector === 'Cash' ? 0 : holding.dividendYield), 0) / yieldValue : null
+  const dividendIncome = holdings.reduce((sum, holding) => sum + (holding.sector !== 'Cash' && Number.isFinite(holding.annualDividend) ? holding.annualDividend * holding.quantity : 0), 0)
+
   return {
     portfolioValue,
     costBasis,
+    beta,
+    betaCoverage: portfolioValue ? (betaValue / portfolioValue) * 100 : 0,
+    dividendYield,
+    dividendIncome,
+    yieldCoverage: portfolioValue ? (yieldValue / portfolioValue) * 100 : 0,
     endowmentValue,
     totalClubValue: portfolioValue + endowmentValue,
     corpus,

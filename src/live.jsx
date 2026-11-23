@@ -94,8 +94,12 @@ export function LiveHero({ summary, holdings, performance, usedSample }) {
         </p>
         <div className="hero-meta">
           <span><b><AnimatedNumber value={holdings.length} format={(value) => Math.round(value)} /></b> positions</span>
-          <span><b><AnimatedNumber value={summary.sectors.length} format={(value) => Math.round(value)} /></b> sectors</span>
-          <span><b>{cashWeight.toFixed(1)}%</b> cash</span>
+          {Number.isFinite(summary.beta)
+            ? <span title="Average beta: how much the portfolio tends to move when the market moves 1%"><b><AnimatedNumber value={summary.beta} format={(value) => value.toFixed(2)} /></b> beta</span>
+            : <span><b><AnimatedNumber value={summary.sectors.length} format={(value) => Math.round(value)} /></b> sectors</span>}
+          {Number.isFinite(summary.dividendYield)
+            ? <span title="Average dividend yield, weighted by position size"><b><AnimatedNumber value={summary.dividendYield} format={(value) => `${value.toFixed(2)}%`} /></b> dividend yield</span>
+            : <span><b>{cashWeight.toFixed(1)}%</b> cash</span>}
         </div>
       </div>
       <Sparkline points={performance} current={summary.portfolioValue} />

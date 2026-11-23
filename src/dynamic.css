@@ -506,3 +506,13 @@ body { background: var(--page); color: var(--ink); }
 .story-return-track { height: 18px; }
 .story-return.drop .story-return-track i { background: rgba(200,16,46,.45); }
 .story-return.drop.club .story-return-track i { background: var(--gold); }
+
+/* Four-up insight strip on the Portfolio page (beta, yield, concentration, cash) */
+.insight-strip.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1180px) {
+  .insight-strip.four { grid-template-columns: 1fr 1fr; }
+  .insight-strip.four article { border-bottom: 1px solid var(--line); }
+  .insight-strip.four article:nth-child(2n) { border-right: 0; }
+  .insight-strip.four article:nth-last-child(-n+2) { border-bottom: 0; }
+}
+.live-hero .hero-meta span[title] { cursor: help; }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { loadDashboardData, SECTOR_COLORS, summarize } from './data'
+import { loadDashboardData, numberFrom, SECTOR_COLORS, summarize } from './data'
 import { AnimatedNumber, useInView } from './motion'
 import { Logo } from './Logo'
 import { withDailyChange } from './sample'
@@ -321,8 +321,13 @@ function PortfolioView({ data, summary, selectedHolding, onSelect, detailOpen, o
   return (
     <div className="page-stack">
       <KpiGrid summary={summary} holdings={data.holdings} performance={data.performance} usedSample={data.usedSample} />
-      <section className="insight-strip" aria-label="Portfolio health indicators">
-        <Insight label="Largest position" value={data.holdings[0]?.symbol || '—'} detail={`${weightOf(data.holdings[0], summary).toFixed(1)}% of portfolio`} />
+      <section className="insight-strip four" aria-label="Portfolio health indicators">
+        {Number.isFinite(summary.beta)
+          ? <Insight label="Portfolio beta" value={summary.beta.toFixed(2)} detail={betaMeaning(summary.beta)} />
+          : <Insight label="Largest position" value={data.holdings[0]?.symbol || '—'} detail={`${weightOf(data.holdings[0], summary).toFixed(1)}% of portfolio`} />}
+        {Number.isFinite(summary.dividendYield) && (
+          <Insight label="Dividend yield" value={`${summary.dividendYield.toFixed(2)}%`} detail={dividendDetail(summary, data.settings)} />
+        )}
         <Insight label="Top five concentration" value={`${summary.topFiveWeight.toFixed(1)}%`} detail="Combined portfolio weight" />
         <Insight label="Cash reserve" value={`${ratio(summary.cash, summary.portfolioValue).toFixed(1)}%`} detail={currency.format(summary.cash)} />
       </section>
@@ -790,6 +795,8 @@ function HoldingDetail({ holding, total, open = false, onClose }) {
         <div><dt>Unrealized return</dt><dd className={tone(holding.gainLossPercent)}>{percent(holding.gainLossPercent)}</dd></div>
         <div><dt>P/E <a className="watch-chip" href="#learn/valuation">▶ What’s this?</a></dt><dd>{holding.pe ?? '—'}</dd></div>
         <div><dt>Beta</dt><dd>{holding.beta ?? '—'}</dd></div>
+        <div><dt>Dividend yield</dt><dd>{Number.isFinite(holding.dividendYield) ? `${holding.dividendYield.toFixed(2)}%` : '—'}</dd></div>
+        <div><dt>Dividend / share</dt><dd>{Number.isFinite(holding.annualDividend) ? `${preciseCurrency.format(holding.annualDividend)}/yr` : '—'}</dd></div>
       </dl>
       {rangePosition !== null && (
         <div className="range-meter">
@@ -923,6 +930,20 @@ function LearningFooter() {
 function tone(value) {
   if (!Number.isFinite(value) || Math.abs(value) < 0.05) return ''
   return value > 0 ? 'positive' : 'negative'
+}
+
+function betaMeaning(beta) {
+  const diff = Math.round(Math.abs(1 - beta) * 100)
+  if (diff < 2) return 'Moves about in step with the market'
+  return `Tends to move ~${diff}% ${beta < 1 ? 'less' : 'more'} than the market`
+}
+
+function dividendDetail(summary, settings = {}) {
+  const compare = [
+    Number.isFinite(numberFrom(settings.schdDividendYield, null)) && `SCHD ${numberFrom(settings.schdDividendYield).toFixed(2)}%`,
+    Number.isFinite(numberFrom(settings.sp500DividendYield, null)) && `S&P 500 ${numberFrom(settings.sp500DividendYield).toFixed(2)}%`,
+  ].filter(Boolean).join(' · ')
+  return `≈ ${currency.format(summary.dividendIncome)} a year${compare ? ` · ${compare}` : ''}`
 }
 
 function ratio(value, total) {

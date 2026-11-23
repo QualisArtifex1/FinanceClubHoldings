@@ -99,3 +99,22 @@ describe('Risk tab', () => {
     expect(sentence).toContain('more than the S&P 500')
   })
 })
+
+describe('portfolio beta and dividend yield', () => {
+  it('weights by value, counts cash as zero, and skips holdings without data', async () => {
+    const { parseHoldings, summarize } = await import('./data')
+    const holdings = parseHoldings([
+      'symbol,quantity,costBasis,sector,type,currentPrice,marketValue,beta,annualDividend,dividendYield',
+      'AAA,10,$500,Industrials,,$60,$600,1.5,$3.00,5.00',
+      'BBB,10,$300,Utilities,,$30,$300,0.5,$0.00,0.00',
+      'FUND,10,$100,Fund,mutual-fund,$10,$100,,,',
+      'CASH,100,$100,Cash,cash,$1,$100,,0,0',
+    ].join('\n'))
+    const summary = summarize(holdings)
+    // Beta: (600×1.5 + 300×0.5 + 100×0) / 1000 = 1.05 (FUND left out)
+    expect(summary.beta).toBeCloseTo(1.05)
+    // Yield: (600×5 + 300×0 + 100×0) / 1000 = 3%
+    expect(summary.dividendYield).toBeCloseTo(3)
+    expect(summary.dividendIncome).toBeCloseTo(30)
+  })
+})
