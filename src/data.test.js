@@ -28,3 +28,33 @@ describe('sheet data utilities', () => {
     expect(summary.scholarshipDistributions).toBe(500)
   })
 })
+
+describe('Videos and Pitches tabs', () => {
+  it('reads YouTube links in any common format', async () => {
+    const { youtubeId } = await import('./data')
+    expect(youtubeId('https://www.youtube.com/watch?v=p7HKvqRI_Bo')).toBe('p7HKvqRI_Bo')
+    expect(youtubeId('https://youtu.be/0zP4yQGAiL4?t=3')).toBe('0zP4yQGAiL4')
+    expect(youtubeId('https://www.youtube.com/watch?list=x&v=J33ObDTsiOU')).toBe('J33ObDTsiOU')
+    expect(youtubeId('J33ObDTsiOU')).toBe('J33ObDTsiOU')
+    expect(youtubeId('not a link')).toBe('')
+  })
+
+  it('keeps only pitches with a symbol and thesis, newest first', async () => {
+    const { parsePitches } = await import('./data')
+    const rows = parsePitches('symbol,pitchDate,analyst,decision,thesis\nmsft,2025-01-10,AB,bought,Cloud growth\nKO,2026-02-01,CD,passed,Steady dividends\nXYZ,2026-03-01,,,')
+    expect(rows.map((row) => row.symbol)).toEqual(['KO', 'MSFT'])
+  })
+})
+
+describe('daily change', () => {
+  it('uses Sheet values and never samples once the column exists', async () => {
+    const { withDailyChange } = await import('./sample')
+    const result = withDailyChange([
+      { symbol: 'AAA', marketValue: 110, dayChangePercent: 10 },
+      { symbol: 'BBB', marketValue: 50, dayChangePercent: null },
+    ])
+    expect(result.usedSample).toBe(false)
+    expect(result.holdings[0].dayChange).toBeCloseTo(10)
+    expect(result.holdings[1].dayChangePercent).toBe(0)
+  })
+})

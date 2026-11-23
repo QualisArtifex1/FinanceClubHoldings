@@ -1,15 +1,26 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { loadDashboardData, SECTOR_COLORS, summarize } from './data'
+import { AnimatedNumber, useInView } from './motion'
+import { Logo } from './Logo'
+import { withDailyChange } from './sample'
+import { LiveHero, MockBanner, TickerStrip, TodayMovers } from './live'
+import StoryView from './StoryView'
+import SimulatorView from './SimulatorView'
+import LearnView from './LearnView'
+import { HoldingPitch, PitchArchive, PitchContext } from './Pitches'
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const preciseCurrency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
 
 const ROUTES = {
-  portfolio: { label: 'Portfolio', eyebrow: 'Portfolio overview', title: 'Understand the club’s portfolio at a glance' },
-  holdings: { label: 'Holdings', eyebrow: 'Holdings workbench', title: 'Explore every position and its role' },
-  benchmark: { label: 'Benchmark', eyebrow: 'Benchmark review', title: 'Compare diversification with SCHD' },
-  research: { label: 'Research', eyebrow: 'Research desk', title: 'Turn portfolio data into better questions' },
+  portfolio: { label: 'Portfolio', eyebrow: 'Portfolio overview', title: 'Portfolio' },
+  story: { label: 'Our Story', eyebrow: 'Scroll to explore', title: 'Our portfolio story' },
+  holdings: { label: 'Holdings', eyebrow: 'Holdings workbench', title: 'Holdings' },
+  benchmark: { label: 'Benchmark', eyebrow: 'Benchmark review', title: 'Compared with SCHD' },
+  simulator: { label: 'What If?', eyebrow: 'Simulator', title: 'Test a trade before the club makes it' },
+  research: { label: 'Research', eyebrow: 'Research desk', title: 'Research' },
+  learn: { label: 'Learn', eyebrow: 'Lessons', title: 'Learn with our portfolio' },
 }
 
 const GLOSSARY = [
@@ -39,8 +50,27 @@ function useMediaQuery(query) {
 }
 
 function routeFromHash() {
-  const route = window.location.hash.replace('#', '')
+  const route = window.location.hash.replace('#', '').split('/')[0]
   return ROUTES[route] ? route : 'portfolio'
+}
+
+function subrouteFromHash() {
+  return window.location.hash.replace('#', '').split('/')[1] || ''
+}
+
+// Market hours (Mon–Fri, 9:30–4:00 New York time): refresh the Sheet every 5 minutes.
+function marketIsOpen(now = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(now).map((part) => [part.type, part.value]))
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute)
+  return !['Sat', 'Sun'].includes(parts.weekday) && minutes >= 570 && minutes < 960
+}
+
+function initialTheme() {
+  try {
+    const saved = localStorage.getItem('fc-theme')
+    if (saved === 'light' || saved === 'dark') return saved
+  } catch { /* storage unavailable */ }
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 export function yahooFinanceUrl(symbol) {
@@ -70,6 +100,8 @@ export function positionsDateLabel(value) {
 
 function App() {
   const [route, setRoute] = useState(routeFromHash)
+  const [subroute, setSubroute] = useState(subrouteFromHash)
+  const [theme, setTheme] = useState(initialTheme)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -80,6 +112,7 @@ function App() {
   useEffect(() => {
     const onHashChange = () => {
       setRoute(routeFromHash())
+      setSubroute(subrouteFromHash())
       setDetailOpen(false)
     }
     window.addEventListener('hashchange', onHashChange)
@@ -92,7 +125,8 @@ function App() {
     setError('')
     loadDashboardData(controller.signal)
       .then((loaded) => {
-        setData(loaded)
+        const { holdings, usedSample } = withDailyChange(loaded.holdings)
+        setData({ ...loaded, holdings, usedSample })
       })
       .catch((reason) => {
         if (reason.name !== 'AbortError') setError(reason.message || 'The Google Sheet could not be loaded.')
@@ -100,6 +134,22 @@ function App() {
       .finally(() => setLoading(false))
     return () => controller.abort()
   }, [refreshKey])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    try { localStorage.setItem('fc-theme', theme) } catch { /* storage unavailable */ }
+  }, [theme])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (marketIsOpen() && document.visibilityState === 'visible') setRefreshKey((key) => key + 1)
+    }, 5 * 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [route])
 
   const summary = useMemo(() => (data ? summarize(data.holdings, data.settings) : null), [data])
   const selectedHolding = data?.holdings.find((holding) => holding.symbol === selectedSymbol) || null
@@ -110,9 +160,12 @@ function App() {
   }
 
   return (
+    <PitchContext.Provider value={data?.pitches || []}>
     <div className="app-shell">
-      <Sidebar route={route} />
-      <main id="main-content" className="main-content" tabIndex="-1">
+      <Sidebar route={route} theme={theme} onToggleTheme={() => setTheme((value) => (value === 'dark' ? 'light' : 'dark'))} />
+      <main id="main-content" className={`main-content route-${route}`} tabIndex="-1">
+        <MockBanner />
+        {data && <TickerStrip holdings={data.holdings} usedSample={data.usedSample} />}
         <header className="page-header">
           <div>
             <p className="eyebrow">{routeInfo.eyebrow}</p>
@@ -137,7 +190,7 @@ function App() {
         {loading && !data && <LoadingState />}
         {error && !data && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
         {data && summary && (
-          <>
+          <div className="route-view" key={route}>
             {error && (
               <div className="notice warning" role="status">
                 <strong>The latest refresh failed.</strong> The last successfully loaded Sheet data remains visible. Try refreshing again in a moment.
@@ -179,15 +232,19 @@ function App() {
                 onCloseDetail={() => setDetailOpen(false)}
               />
             )}
+            {route === 'story' && <StoryView data={data} summary={summary} />}
+            {route === 'simulator' && <SimulatorView data={data} summary={summary} />}
+            {route === 'learn' && <LearnView data={data} summary={summary} lessonId={subroute} />}
             <LearningFooter />
-          </>
+          </div>
         )}
       </main>
     </div>
+    </PitchContext.Provider>
   )
 }
 
-function Sidebar({ route }) {
+function Sidebar({ route, theme, onToggleTheme }) {
   return (
     <aside className="sidebar" aria-label="Dashboard navigation">
       <div className="brand">
@@ -205,6 +262,12 @@ function Sidebar({ route }) {
           </a>
         ))}
       </nav>
+      <button type="button" className="theme-toggle" onClick={onToggleTheme} aria-pressed={theme === 'dark'}>
+        <svg aria-hidden="true" viewBox="0 0 24 24">{theme === 'dark'
+          ? <path d="M12 3v2 M12 19v2 M3 12h2 M19 12h2 M5.6 5.6l1.4 1.4 M17 17l1.4 1.4 M5.6 18.4L7 17 M17 7l1.4-1.4 M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8z" />
+          : <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />}</svg>
+        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      </button>
       <div className="sidebar-note">
         <strong>Student-managed portfolio</strong>
         <span>Benchmark: SCHD</span>
@@ -219,6 +282,9 @@ function NavIcon({ name }) {
     holdings: 'M4 19V9 M10 19V4 M16 19v-7 M22 19H2',
     benchmark: 'M3 18l5-6 4 3 7-9 M19 6h-5',
     research: 'M10.5 18a7.5 7.5 0 1 1 5.3-2.2L21 21',
+    story: 'M4 5h7a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4z M20 5h-7 M20 5v13h-7',
+    simulator: 'M4 7h10 M18 7h2 M4 17h4 M12 17h8 M16 5v4 M10 15v4',
+    learn: 'M2 9l10-5 10 5-10 5z M6 11v5c3 2 9 2 12 0v-5 M22 9v6',
   }
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -254,12 +320,13 @@ function ErrorState({ message, onRetry }) {
 function PortfolioView({ data, summary, selectedHolding, onSelect, detailOpen, onCloseDetail }) {
   return (
     <div className="page-stack">
-      <KpiGrid summary={summary} holdings={data.holdings} />
+      <KpiGrid summary={summary} holdings={data.holdings} performance={data.performance} usedSample={data.usedSample} />
       <section className="insight-strip" aria-label="Portfolio health indicators">
         <Insight label="Largest position" value={data.holdings[0]?.symbol || '—'} detail={`${weightOf(data.holdings[0], summary).toFixed(1)}% of portfolio`} />
         <Insight label="Top five concentration" value={`${summary.topFiveWeight.toFixed(1)}%`} detail="Combined portfolio weight" />
         <Insight label="Cash reserve" value={`${ratio(summary.cash, summary.portfolioValue).toFixed(1)}%`} detail={currency.format(summary.cash)} />
       </section>
+      <TodayMovers holdings={data.holdings} usedSample={data.usedSample} onSelect={onSelect} />
       <BalanceChart points={data.performance} />
       <div className="two-column">
         <AllocationPanel sectors={summary.sectors} benchmark={data.benchmark} />
@@ -273,24 +340,16 @@ function PortfolioView({ data, summary, selectedHolding, onSelect, detailOpen, o
   )
 }
 
-function KpiGrid({ summary, holdings }) {
+function KpiGrid({ summary, holdings, performance, usedSample }) {
+  const money = (value) => currency.format(value)
   return (
     <section className="summary-layout" aria-label="Portfolio summary">
-      <article className="portfolio-hero">
-        <span>Portfolio value</span>
-        <strong>{currency.format(summary.portfolioValue)}</strong>
-        <p>Current market value of holdings from the club’s Google Sheet.</p>
-        <div className="hero-meta">
-          <span><b>{holdings.length}</b> positions</span>
-          <span><b>{summary.sectors.length}</b> sectors</span>
-          <span><b>{ratio(summary.cash, summary.portfolioValue).toFixed(1)}%</b> cash</span>
-        </div>
-      </article>
+      <LiveHero summary={summary} holdings={holdings} performance={performance} usedSample={usedSample} />
       <div className="kpi-grid">
-        <Kpi label="Total club value" value={currency.format(summary.totalClubValue)} note="Portfolio plus endowment" />
-        <Kpi label="Unrealized gain" value={`${summary.unrealizedGain >= 0 ? '+' : ''}${currency.format(summary.unrealizedGain)}`} note="Market value minus cost basis" tone={summary.unrealizedGain >= 0 ? 'positive' : 'negative'} />
-        <Kpi label="Endowment" value={currency.format(summary.endowmentValue)} note="From Club Settings tab" />
-        <Kpi label="Scholarships distributed" value={currency.format(summary.scholarshipDistributions)} note="Tracked separately from club value" />
+        <Kpi label="Total club value" value={<AnimatedNumber value={summary.totalClubValue} format={money} />} note="Portfolio plus endowment" />
+        <Kpi label="Unrealized gain" value={<AnimatedNumber value={summary.unrealizedGain} format={(value) => `${value >= 0 ? '+' : ''}${money(value)}`} />} note="Market value minus cost basis" tone={summary.unrealizedGain >= 0 ? 'positive' : 'negative'} />
+        <Kpi label="Endowment" value={<AnimatedNumber value={summary.endowmentValue} format={money} />} note="From Club Settings tab" />
+        <Kpi label="Scholarships distributed" value={<AnimatedNumber value={summary.scholarshipDistributions} format={money} />} note="Tracked separately from club value" />
       </div>
     </section>
   )
@@ -320,6 +379,7 @@ function BalanceChart({ points }) {
   const [range, setRange] = useState('All')
   const [selectedYear, setSelectedYear] = useState(points.at(-1)?.year)
   const compact = useMediaQuery('(max-width: 620px)')
+  const [chartRef, chartInView] = useInView(0.3)
   const visible = range === 'All' ? points : points.slice(-(range === '5Y' ? 5 : 3))
   if (!points.length) return <UnavailablePanel title="Balance history" />
 
@@ -345,7 +405,7 @@ function BalanceChart({ points }) {
   const changePercent = previousPoint?.portfolioValue ? (change / previousPoint.portfolioValue) * 100 : null
 
   return (
-    <section className="panel chart-panel">
+    <section className={`panel chart-panel ${chartInView ? 'in-view' : ''}`} ref={chartRef}>
       <PanelHeading eyebrow="Annual history" title="Portfolio balance" trailing={(
         <div className="segmented" aria-label="Balance history range">
           {['All', '5Y', '3Y'].map((option) => (
@@ -363,7 +423,7 @@ function BalanceChart({ points }) {
               <text x={plot.left - 12} y={y(tick) + 4} textAnchor="end">{currency.format(tick)}</text>
             </g>
           ))}
-          <polyline points={polyline} className="balance-area-line" />
+          <polyline points={polyline} className="balance-area-line" pathLength="1" key={range} />
           {visible.map((point, index) => (
             <g
               className="chart-point"
@@ -409,12 +469,13 @@ function BalanceChart({ points }) {
 }
 
 function AllocationPanel({ sectors, benchmark }) {
+  const [ref, inView] = useInView(0.3)
   const benchmarkMap = Object.fromEntries(benchmark.map((row) => [row.sector, row.weight]))
   return (
-    <section className="panel">
+    <section className="panel" ref={ref}>
       <PanelHeading eyebrow="Diversification" title="Sector allocation" />
       <div className="allocation-summary">
-        <div className="donut" style={{ background: sectorGradient(sectors) }} role="img" aria-label={sectors.map((sector) => `${sector.sector} ${sector.weight.toFixed(1)} percent`).join(', ')}>
+        <div className={`donut ${inView ? 'in-view' : ''}`} style={{ background: sectorGradient(sectors) }} role="img" aria-label={sectors.map((sector) => `${sector.sector} ${sector.weight.toFixed(1)} percent`).join(', ')}>
           <span><strong>{sectors.length}</strong>sectors</span>
         </div>
         <div className="sector-list">
@@ -433,8 +494,9 @@ function AllocationPanel({ sectors, benchmark }) {
 
 function ConcentrationPanel({ holdings, summary }) {
   const top = holdings.slice(0, 5)
+  const [ref, inView] = useInView(0.3)
   return (
-    <section className="panel">
+    <section className="panel" ref={ref}>
       <PanelHeading eyebrow="Position sizing" title="Largest portfolio weights" />
       <div className="bar-list">
         {top.map((holding) => {
@@ -442,7 +504,7 @@ function ConcentrationPanel({ holdings, summary }) {
           return (
             <div className="bar-row" key={holding.symbol}>
               <div><strong>{holding.symbol}</strong><span>{holding.name}</span><b>{weight.toFixed(1)}%</b></div>
-              <div className="bar-track"><i style={{ width: `${Math.min(weight * 8, 100)}%` }} /></div>
+              <div className="bar-track"><i style={{ width: inView ? `${Math.min(weight * 8, 100)}%` : 0 }} /></div>
             </div>
           )
         })}
@@ -557,7 +619,7 @@ function HoldingsTable({ holdings, total, selected, onSelect, compact = false, c
           <tbody>
             {rows.map((holding) => (
               <tr key={holding.symbol} className={selected === holding.symbol ? 'selected' : ''}>
-                <td data-label="Symbol"><button className="ticker-button" type="button" onClick={() => onSelect(holding.symbol)} aria-label={`Show details for ${holding.symbol}`}>{holding.symbol}</button></td>
+                <td data-label="Symbol"><button className="ticker-button" type="button" onClick={() => onSelect(holding.symbol)} aria-label={`Show details for ${holding.symbol}`}><Logo symbol={holding.symbol} size={22} />{holding.symbol}</button></td>
                 <td data-label="Company"><strong>{holding.name}</strong><small>{number.format(holding.quantity)} shares at {preciseCurrency.format(holding.price)}</small></td>
                 <td data-label="Sector"><span className="sector-chip"><i style={{ background: SECTOR_COLORS[holding.sector] || SECTOR_COLORS.Unknown }} />{holding.sector}</span></td>
                 <td data-label="Market value" className="numeric">{currency.format(holding.marketValue)}</td>
@@ -707,7 +769,7 @@ function HoldingDetail({ holding, total, open = false, onClose }) {
     {open && <button className="detail-backdrop" type="button" aria-hidden="true" tabIndex="-1" onClick={onClose} />}
     <aside className={`panel detail-panel ${open ? 'open' : ''}`} aria-label={`Details for ${holding.symbol}`}>
       <button className="detail-close" type="button" onClick={onClose} ref={closeRef} aria-label="Close holding details">×</button>
-      <div className="detail-title"><span>{holding.symbol.slice(0, 2)}</span><div><p className="eyebrow">Selected holding</p><h2>{holding.symbol}</h2><p>{holding.name}</p></div></div>
+      <div className="detail-title"><Logo symbol={holding.symbol} size={46} className="detail-logo" /><div><p className="eyebrow">Selected holding</p><h2>{holding.symbol}</h2><p>{holding.name}</p></div></div>
       <div className="detail-price"><strong>{preciseCurrency.format(holding.price)}</strong><span>{ratio(holding.marketValue, total).toFixed(1)}% weight</span></div>
       {researchUrl && (
         <a
@@ -725,7 +787,7 @@ function HoldingDetail({ holding, total, open = false, onClose }) {
         <div><dt>Shares</dt><dd>{number.format(holding.quantity)}</dd></div>
         <div><dt>Cost basis</dt><dd>{currency.format(holding.costBasis)}</dd></div>
         <div><dt>Unrealized return</dt><dd className={tone(holding.gainLossPercent)}>{percent(holding.gainLossPercent)}</dd></div>
-        <div><dt>P/E</dt><dd>{holding.pe ?? '—'}</dd></div>
+        <div><dt>P/E <a className="watch-chip" href="#learn/valuation">▶ What’s this?</a></dt><dd>{holding.pe ?? '—'}</dd></div>
         <div><dt>Beta</dt><dd>{holding.beta ?? '—'}</dd></div>
       </dl>
       {rangePosition !== null && (
@@ -734,6 +796,7 @@ function HoldingDetail({ holding, total, open = false, onClose }) {
           <div className="range-track"><i style={{ left: `${Math.max(0, Math.min(rangePosition, 100))}%` }} /></div>
         </div>
       )}
+      <HoldingPitch symbol={holding.symbol} />
       <div className="company-facts"><span>Sector<strong>{holding.sector}</strong></span><span>Industry<strong>{holding.industry}</strong></span><span>EPS<strong>{holding.eps ?? '—'}</strong></span></div>
       <p className="source-note">Fundamentals and prices come from the holdings tab and may be delayed.</p>
     </aside>
@@ -819,6 +882,7 @@ function ResearchView({ data, summary, selectedHolding, onSelect, detailOpen, on
         </section>
         <HoldingDetail holding={selectedHolding} total={summary.portfolioValue} open={detailOpen} onClose={onCloseDetail} />
       </div>
+      <PitchArchive holdings={data.holdings} onSelect={onSelect} />
       <section className="panel thesis-template">
         <PanelHeading eyebrow="Student analyst template" title="A repeatable investment memo" />
         <div className="memo-grid">

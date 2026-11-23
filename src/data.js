@@ -5,7 +5,12 @@ export const SHEETS = {
   benchmark: '202600101',
   performance: '202600102',
   settings: '202600103',
+  videos: '202600105',
+  pitches: '202600106',
 }
+
+// Tabs the site can run without (no warning if they are missing).
+const OPTIONAL_TABS = new Set(['videos', 'pitches'])
 
 export const SECTOR_COLORS = {
   'Information Technology': '#004F9E',
@@ -105,6 +110,7 @@ export function parseHoldings(text) {
         low52: numberFrom(record.low52, null),
         pe: numberFrom(record.pe, null),
         eps: numberFrom(record.eps, null),
+        dayChangePercent: numberFrom(record.changepct || record.daychangepercent, null),
       }
     })
     .filter(Boolean)
@@ -143,6 +149,46 @@ export function parseSettings(text) {
   )
 }
 
+// Accepts a full YouTube link (watch, youtu.be, shorts, embed) or a bare video ID.
+export function youtubeId(value) {
+  const text = String(value || '').trim()
+  if (/^[\w-]{11}$/.test(text)) return text
+  const match = text.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/)
+  return match ? match[1] : ''
+}
+
+export function parseVideos(text) {
+  return recordsFromCsv(text)
+    .map((record) => ({
+      lessonId: String(record.lessonid || '').trim(),
+      order: numberFrom(record.order, null),
+      title: String(record.title || '').trim(),
+      type: String(record.type || '').trim().toLowerCase(),
+      youtube: youtubeId(record.youtube),
+      length: String(record.length || '').trim(),
+      credit: String(record.credit || '').trim(),
+    }))
+    .filter((row) => row.lessonId)
+}
+
+export function parsePitches(text) {
+  return recordsFromCsv(text)
+    .map((record) => ({
+      symbol: String(record.symbol || '').trim().toUpperCase(),
+      date: String(record.pitchdate || '').trim(),
+      analyst: String(record.analyst || '').trim(),
+      decision: String(record.decision || '').trim().toLowerCase(),
+      thesis: String(record.thesis || '').trim(),
+      whyNow: String(record.whynow || '').trim(),
+      risks: String(record.risks || '').trim(),
+      sellTrigger: String(record.selltrigger || '').trim(),
+      nextReview: String(record.nextreview || '').trim(),
+      link: /^https?:\/\//.test(String(record.link || '').trim()) ? String(record.link).trim() : '',
+    }))
+    .filter((row) => row.symbol && row.thesis)
+    .sort((a, b) => b.date.localeCompare(a.date))
+}
+
 async function fetchSheet(gid, signal) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}&cacheBust=${Date.now()}`
   const response = await fetch(url, { cache: 'no-store', signal })
@@ -161,7 +207,7 @@ export async function loadDashboardData(signal) {
   entries.forEach((result, index) => {
     const name = Object.keys(SHEETS)[index]
     if (result.status === 'fulfilled') csv[result.value[0]] = result.value[1]
-    else errors.push(`${name}: ${result.reason?.message || 'unavailable'}`)
+    else if (!OPTIONAL_TABS.has(name)) errors.push(`${name}: ${result.reason?.message || 'unavailable'}`)
   })
 
   if (signal?.aborted) throw new DOMException('Sheet loading was cancelled', 'AbortError')
@@ -171,6 +217,8 @@ export async function loadDashboardData(signal) {
     benchmark: csv.benchmark ? parseBenchmark(csv.benchmark) : [],
     performance: csv.performance ? parsePerformance(csv.performance) : [],
     settings: csv.settings ? parseSettings(csv.settings) : {},
+    videos: csv.videos ? parseVideos(csv.videos) : [],
+    pitches: csv.pitches ? parsePitches(csv.pitches) : [],
     errors,
     fetchedAt: new Date(),
   }
