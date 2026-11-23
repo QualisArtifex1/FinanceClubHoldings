@@ -3,6 +3,8 @@ import { SECTOR_COLORS } from './data'
 import { AnimatedNumber } from './motion'
 import { Logo } from './Logo'
 import { currency, signedPercent } from './live'
+import { INDEXES, riskSentence } from './data'
+import { returnTakeaway } from './Performance'
 
 function sectorTilts(summary, benchmark) {
   const benchmarkMap = Object.fromEntries(benchmark.map((row) => [row.sector, row.weight]))
@@ -31,6 +33,7 @@ export default function StoryView({ data, summary }) {
   const sinceDrop = dropYear ? ((summary.portfolioValue - dropYear.value) / dropYear.value) * 100 : 0
   const largest = equities[0]
   const over = tilts.find((item) => item.tilt > 0)
+  const since = (data.returns || []).find((row) => row.period === 'since')
   const under = tilts.find((item) => item.tilt < 0)
 
   const steps = [
@@ -38,6 +41,7 @@ export default function StoryView({ data, summary }) {
     { kicker: `${first?.year}–${growthEnd?.year}`, title: `Growing to ${currency.format(growthEnd?.value ?? 0)}`, body: 'Part of this growth is new money from contributions, not just investment gains. That’s why a rising balance isn’t the same as a return.', graphic: 'line', upTo: growthEnd?.year },
     { kicker: String(dropYear?.year ?? ''), title: 'The pandemic-era test', body: `The balance fell ${Math.abs(dropPercent).toFixed(1)}% in the market downturn that followed the pandemic, as inflation and rising interest rates hit stocks. Staying invested through a bad year is one of the hardest lessons in investing.`, graphic: 'line', upTo: dropYear?.year, highlight: dropYear?.year },
     { kicker: 'Today', title: `${currency.format(summary.portfolioValue)} and counting`, body: dropYear ? `That’s ${signedPercent(sinceDrop, 0)} since the ${dropYear.year} low.` : 'The latest value from the club’s Sheet.', graphic: 'line', upTo: history.at(-1)?.year },
+    ...(since ? [{ kicker: 'Our results', title: `${since.club.toFixed(2)}% a year since ${String(since.start).slice(0, 4)}`, body: data.risk?.maxDrawdown ? `${returnTakeaway(since)} ${riskSentence(data.risk.maxDrawdown)}` : `${returnTakeaway(since)} That rate removes the effect of money added and withdrawn — it’s what the investing itself earned.`, graphic: 'returns' }] : []),
     { kicker: 'What we own', title: `${equities.length} holdings across ${summary.sectors.length} sectors`, body: largest ? `Each logo is sized by its share of the portfolio. The largest stock position is ${largest.symbol} at ${((largest.marketValue / summary.portfolioValue) * 100).toFixed(1)}%.` : '', graphic: 'logos' },
     { kicker: 'Our choices', title: 'Where we differ from SCHD', body: `We lean hardest into ${over?.sector} (${signedPercent(over?.tilt ?? 0, 1)}) and away from ${under?.sector} (${signedPercent(under?.tilt ?? 0, 1)}). Every tilt is a decision the club can explain.`, graphic: 'tilts' },
     { kicker: 'Why it matters', title: 'From portfolio to scholarships', body: `The club’s investments sit alongside a ${currency.format(summary.endowmentValue)} endowment, which has funded ${currency.format(summary.scholarshipDistributions)} in scholarships so far.`, graphic: 'flow' },
@@ -64,6 +68,7 @@ export default function StoryView({ data, summary }) {
           <StoryLogos holdings={equities} total={summary.portfolioValue} visible={step.graphic === 'logos'} />
           <StoryTilts tilts={tilts.slice(0, 7)} visible={step.graphic === 'tilts'} />
           <StoryFlow summary={summary} visible={step.graphic === 'flow'} />
+          {since && <StoryReturns row={since} drawdown={data.risk?.maxDrawdown} visible={step.graphic === 'returns'} />}
         </div>
         <div className="story-progress">{steps.map((item, index) => <i key={item.title} className={index <= active ? 'done' : ''} />)}</div>
       </div>
@@ -178,6 +183,38 @@ function StoryFlow({ summary, visible }) {
           </div>
         </React.Fragment>
       ))}
+    </div>
+  )
+}
+
+function StoryReturns({ row, drawdown, visible }) {
+  const entries = [{ key: 'club', label: 'Our club' }, ...INDEXES].map((item) => ({ ...item, rate: row[item.key], drop: drawdown?.[item.key] }))
+  const shown = entries.filter((item) => Number.isFinite(item.rate))
+  const maxRate = Math.max(...shown.map((item) => item.rate), 1)
+  const drops = entries.filter((item) => Number.isFinite(item.drop))
+  const maxDrop = Math.max(...drops.map((item) => Math.abs(item.drop)), 1)
+  return (
+    <div className={`story-layer story-returns ${visible ? 'visible' : ''}`}>
+      <p className="story-returns-title">Return per year, {String(row.start).slice(0, 4)}–{String(row.end).slice(0, 4)} <span>higher is better</span></p>
+      {shown.map((item, index) => (
+        <div className={`story-return ${item.key === 'club' ? 'club' : ''}`} key={item.key} style={{ '--delay': `${index * 120}ms`, '--w': `${(item.rate / maxRate) * 100}%` }}>
+          <strong>{item.label}</strong>
+          <div className="story-return-track"><i /></div>
+          <b>{item.rate.toFixed(2)}%</b>
+        </div>
+      ))}
+      {drops.length > 0 && (
+        <>
+          <p className="story-returns-title risk">Worst drop, past {drawdown.window || '5 years'} <span>smaller is safer</span></p>
+          {drops.map((item, index) => (
+            <div className={`story-return drop ${item.key === 'club' ? 'club' : ''}`} key={`${item.key}-drop`} style={{ '--delay': `${600 + index * 120}ms`, '--w': `${(Math.abs(item.drop) / maxDrop) * 100}%` }}>
+              <strong>{item.label}</strong>
+              <div className="story-return-track"><i /></div>
+              <b>{item.drop.toFixed(1)}%</b>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   )
 }

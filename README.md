@@ -12,7 +12,13 @@ A static, student-friendly dashboard for the Detroit Catholic Central Finance Cl
 - Portfolio sector allocation and SCHD sector-tilt comparison
 - Research priorities based on position size and unrealized outcomes
 - Student investment-memo prompts and a built-in finance glossary
-- Separate source-update and retrieval timestamps, including an old-source warning
+- Live price status and a "positions last entered" date
+- Holdings ticker, animated portfolio hero, today's movers, company logos, and dark mode; refreshes every 5 minutes during market hours
+- Performance panel from the brokerage statement: rate of return by period, where the ending value came from, and comparison with the S&P 500, NASDAQ, and Dow
+- Our Story: a scroll-driven history of the portfolio, its results, and its risk
+- What If? simulator for moving money between sectors
+- Learn: lessons with YouTube explainers and built-in 60-second motion graphics (compounding, rebalancing, reading the dashboard), each with an activity using the club's data
+- Pitch archive on the Research page and in each holding's details
 - Honest loading, partial-data, refresh, and failure states
 - Official Detroit Catholic Central crest, primary blue, gold accent, and approved typography roles
 
@@ -25,7 +31,11 @@ The application reads CSV exports from spreadsheet `1Zo7-zIo5SppN4yok494w4ufIuOM
 | Holdings | `2018330312` | Positions, prices, values, cost basis, sector, industry, and fundamentals |
 | SCHD benchmark | `202600101` | Benchmark sector weights |
 | Performance | `202600102` | Annual portfolio, endowment, and total-club balances |
-| Club settings | `202600103` | Endowment, corpus/net contributions, scholarship distributions, and last-updated timestamp |
+| Club settings | `202600103` | Endowment, corpus/net contributions, scholarship distributions, and positions-last-edited date |
+| Videos | `202600105` | Learn-page video for each lesson (YouTube link or built-in motion graphic) |
+| Pitches | `202600106` | Stock pitches: thesis, risks, sell trigger, decision, review date |
+| Returns | `202600107` | Brokerage rate of return and value breakdown by period, with S&P 500 / NASDAQ / Dow returns |
+| Risk | `202600108` | Worst drop, volatility, and beta for today's holdings vs the indexes (refresh with `python3 scripts/measure_risk.py`) |
 
 The spreadsheet must remain published or shared so that anyone with the link can read it. If a tab fails, the dashboard never substitutes invented financial data.
 
@@ -51,6 +61,6 @@ In the repository settings, set **Pages → Build and deployment → Source** to
 
 ## Data interpretation
 
-Annual balances are not investment returns because contributions and withdrawals affect them. A valid time-weighted return and historical portfolio-versus-SCHD chart require dated transaction or cash-flow data plus historical benchmark values. Until those exist in the Sheet, the dashboard labels the annual series as balance history and limits SCHD analysis to sector allocation.
+Annual balances are not investment returns because contributions and withdrawals affect them. Rates of return come from the club's brokerage statement (Returns tab), which removes those effects. SCHD analysis covers sector allocation. Risk figures apply today's holdings to past prices, so they describe the current portfolio rather than the club's historical holdings.
 
 This website is an educational tool and is not investment advice. Prices and fundamentals may be delayed.

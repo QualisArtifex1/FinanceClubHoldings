@@ -3,11 +3,12 @@ import { loadDashboardData, SECTOR_COLORS, summarize } from './data'
 import { AnimatedNumber, useInView } from './motion'
 import { Logo } from './Logo'
 import { withDailyChange } from './sample'
-import { LiveHero, MockBanner, TickerStrip, TodayMovers } from './live'
+import { LiveHero, TickerStrip, TodayMovers } from './live'
 import StoryView from './StoryView'
 import SimulatorView from './SimulatorView'
 import LearnView from './LearnView'
 import { HoldingPitch, PitchArchive, PitchContext } from './Pitches'
+import PerformancePanel from './Performance'
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const preciseCurrency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
@@ -164,7 +165,6 @@ function App() {
     <div className="app-shell">
       <Sidebar route={route} theme={theme} onToggleTheme={() => setTheme((value) => (value === 'dark' ? 'light' : 'dark'))} />
       <main id="main-content" className={`main-content route-${route}`} tabIndex="-1">
-        <MockBanner />
         {data && <TickerStrip holdings={data.holdings} usedSample={data.usedSample} />}
         <header className="page-header">
           <div>
@@ -326,8 +326,9 @@ function PortfolioView({ data, summary, selectedHolding, onSelect, detailOpen, o
         <Insight label="Top five concentration" value={`${summary.topFiveWeight.toFixed(1)}%`} detail="Combined portfolio weight" />
         <Insight label="Cash reserve" value={`${ratio(summary.cash, summary.portfolioValue).toFixed(1)}%`} detail={currency.format(summary.cash)} />
       </section>
+      {data.returns.length > 0 && <PerformancePanel returns={data.returns} />}
       <TodayMovers holdings={data.holdings} usedSample={data.usedSample} onSelect={onSelect} />
-      <BalanceChart points={data.performance} />
+      <BalanceChart points={data.performance} hasReturns={data.returns.length > 0} />
       <div className="two-column">
         <AllocationPanel sectors={summary.sectors} benchmark={data.benchmark} />
         <ConcentrationPanel holdings={data.holdings} summary={summary} />
@@ -375,7 +376,7 @@ function Insight({ label, value, detail }) {
   )
 }
 
-function BalanceChart({ points }) {
+function BalanceChart({ points, hasReturns = false }) {
   const [range, setRange] = useState('All')
   const [selectedYear, setSelectedYear] = useState(points.at(-1)?.year)
   const compact = useMediaQuery('(max-width: 620px)')
@@ -458,7 +459,7 @@ function BalanceChart({ points }) {
           )}
         </div>
       )}
-      <p className="data-explainer"><strong>Balance is not return.</strong> Deposits and withdrawals affect these totals. A contribution-adjusted performance comparison requires transaction or cash-flow history in the Sheet.</p>
+      <p className="data-explainer"><strong>Balance is not return.</strong> Deposits and withdrawals affect these totals. {hasReturns ? 'For the club’s actual rate of return, which removes those effects, see “How the portfolio has done.”' : 'A contribution-adjusted performance comparison requires transaction or cash-flow history in the Sheet.'}</p>
       <table className="sr-only">
         <caption>Annual portfolio balance data</caption>
         <thead><tr><th>Year</th><th>Portfolio balance</th></tr></thead>
@@ -813,7 +814,10 @@ function BenchmarkView({ data, summary }) {
   const tilts = names.map((sector) => ({ sector, portfolio: portfolioMap[sector] || 0, benchmark: benchmarkMap[sector] || 0, tilt: (portfolioMap[sector] || 0) - (benchmarkMap[sector] || 0) })).sort((a, b) => Math.abs(b.tilt) - Math.abs(a.tilt))
   return (
     <div className="page-stack">
-      <div className="notice info"><strong>What this comparison means:</strong> The Sheet currently provides SCHD sector weights, not historical SCHD returns. This page compares diversification and does not claim to measure relative investment performance.</div>
+      {data.returns.length > 0
+        ? <PerformancePanel returns={data.returns} />
+        : <div className="notice info"><strong>What this comparison means:</strong> The Sheet currently provides SCHD sector weights, not historical SCHD returns. This page compares diversification and does not claim to measure relative investment performance.</div>}
+      <div className="notice info"><strong>Below: sector mix vs SCHD.</strong> This compares how the portfolio is spread across sectors, not its returns.</div>
       <section className="insight-strip">
         <Insight label="Largest overweight" value={tilts.find((item) => item.tilt > 0)?.sector || '—'} detail={percent(tilts.find((item) => item.tilt > 0)?.tilt || 0)} />
         <Insight label="Largest underweight" value={tilts.find((item) => item.tilt < 0)?.sector || '—'} detail={percent(tilts.find((item) => item.tilt < 0)?.tilt || 0)} />
@@ -834,7 +838,7 @@ function BenchmarkView({ data, summary }) {
         </div>
       </section>
       <div className="two-column"><AllocationPanel sectors={summary.sectors} benchmark={data.benchmark} /><BenchmarkQuestions tilts={tilts} /></div>
-      <BalanceChart points={data.performance} />
+      <BalanceChart points={data.performance} hasReturns={data.returns.length > 0} />
     </div>
   )
 }

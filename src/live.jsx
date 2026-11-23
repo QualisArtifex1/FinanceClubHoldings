@@ -8,17 +8,8 @@ export const signedCurrency = (value) => `${value >= 0 ? '+' : '−'}${currency.
 export const signedPercent = (value, digits = 2) => (Number.isFinite(value) ? `${value >= 0 ? '+' : ''}${value.toFixed(digits)}%` : '—')
 export const toneOf = (value) => (!Number.isFinite(value) || Math.abs(value) < 0.005 ? '' : value > 0 ? 'positive' : 'negative')
 
-export function MockBanner() {
-  return (
-    <div className="mock-banner" role="note">
-      <strong>Design mockup</strong>
-      <span>Not the live site yet. All numbers come from the club’s Sheet; the Our Story text is a draft for students to rewrite.</span>
-    </div>
-  )
-}
-
 export function SampleMark({ show }) {
-  return show ? <span className="sample-mark" title="Sample value for the mockup. Add a changepct column to the Sheet for real values.">sample</span> : null
+  return show ? <span className="sample-mark" title="Estimated value: add a changepct column to the Holdings tab for real daily changes.">sample</span> : null
 }
 
 export function dailyTotals(holdings, portfolioValue) {

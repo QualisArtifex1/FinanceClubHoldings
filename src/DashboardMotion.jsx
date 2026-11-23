@@ -20,7 +20,9 @@ function buildFacts(data, summary) {
     .map((sector) => ({ sector: sector.sector, ours: sector.weight, schd: benchmark[sector.sector] || 0, tilt: sector.weight - (benchmark[sector.sector] || 0) }))
     .sort((a, b) => Math.abs(b.tilt) - Math.abs(a.tilt))
     .slice(0, 4)
-  const contributions = Math.min(summary.corpus, summary.totalClubValue)
+  // Prefer the brokerage's own breakdown (Returns tab); fall back to Club Settings.
+  const since = (data.returns || []).find((row) => row.period === 'since' && [row.beginning, row.net, row.change, row.ending].every(Number.isFinite))
+  const contributions = since ? since.beginning + since.net : Math.min(summary.corpus, summary.totalClubValue)
   return {
     total,
     positions: data.holdings.length,
@@ -31,9 +33,13 @@ function buildFacts(data, summary) {
     starWeight: total ? (star.marketValue / total) * 100 : 0,
     holdings: data.holdings,
     tilts,
-    clubValue: summary.totalClubValue,
+    clubValue: since ? since.ending : summary.totalClubValue,
+    valueLabel: since ? 'PORTFOLIO VALUE' : 'TOTAL CLUB VALUE',
     contributions,
-    growth: summary.totalClubValue - contributions,
+    contributionsLabel: since ? 'starting balance + money added' : 'money put in (contributions)',
+    growth: since ? since.change : summary.totalClubValue - contributions,
+    rate: since?.club,
+    sinceYear: since ? String(since.start).slice(0, 4) : '',
   }
 }
 
@@ -66,7 +72,7 @@ function buildScenes(f) {
     },
     {
       id: 'return', chapter: 'Balance vs return', start: 46, end: 55,
-      captions: ['A growing balance comes from two places: new money put in, and investment growth.', 'Only the growth is return — so the balance chart is not a performance chart.'],
+      captions: ['A growing balance comes from two places: new money put in, and investment growth.', Number.isFinite(f.rate) ? `Only the growth is return: ${money.format(f.growth)}, or ${f.rate.toFixed(2)}% a year since ${f.sinceYear}.` : 'Only the growth is return — so the balance chart is not a performance chart.'],
       render: (p) => <ReturnScene p={p} f={f} />,
     },
     {
@@ -228,13 +234,13 @@ function ReturnScene({ p, f }) {
   const stamp = step(p, 0.72, 0.85)
   return (
     <g>
-      <text x="800" y="250" textAnchor="middle" fill="rgba(255,255,255,.75)" fontFamily={SANS} fontSize="28" fontWeight="800" letterSpacing="4">{`TOTAL CLUB VALUE · ${money.format(f.clubValue)}`}</text>
+      <text x="800" y="250" textAnchor="middle" fill="rgba(255,255,255,.75)" fontFamily={SANS} fontSize="28" fontWeight="800" letterSpacing="4">{`${f.valueLabel} · ${money.format(f.clubValue)}`}</text>
       <rect x={x0} y={y} width={width} height="130" rx="16" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.2)" />
       <rect x={x0} y={y} width={putIn} height="130" rx="16" fill="url(#mg-gold)" />
       <rect x={x0 + putIn} y={y} width={growth} height="130" rx="16" fill="url(#mg-green)" />
       <g opacity={step(p, 0.25, 0.4)}>
         <text x={x0 + 20} y={y + 190} fill={GOLD} fontFamily={SERIF} fontSize="46" fontWeight="700">{money.format(f.contributions)}</text>
-        <text x={x0 + 20} y={y + 228} fill="#fff" fontFamily={SANS} fontSize="24" fontWeight="700">money put in (contributions)</text>
+        <text x={x0 + 20} y={y + 228} fill="#fff" fontFamily={SANS} fontSize="24" fontWeight="700">{f.contributionsLabel}</text>
       </g>
       <g opacity={step(p, 0.62, 0.75)}>
         <text x={x0 + width - 20} y={y + 190} textAnchor="end" fill={GREEN} fontFamily={SERIF} fontSize="46" fontWeight="700">{money.format(f.growth)}</text>

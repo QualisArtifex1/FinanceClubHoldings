@@ -58,3 +58,44 @@ describe('daily change', () => {
     expect(result.holdings[1].dayChangePercent).toBe(0)
   })
 })
+
+describe('Returns tab', () => {
+  const csv = `period,label,startDate,endDate,annualized,beginningValue,contributions,withdrawals,netContributions,investmentChange,endingValue,cumulativeReturn,clubReturn,sp500,nasdaq,djia
+since,"Since Dec 31, 2016",2016-12-31,2026-11-22,yes,"$18,417.30","$162,834.71","$25,180.77","$137,653.94","$207,977.51","$364,048.75",191.75,11.43,13.91,17.23,11.69
+1y,One year,11/22/2025,11/22/2026,yes,"$324,641.80",,,-$31.55,"$39,438.50","$364,048.75",,12.15,5.86,7.84,5.78`
+
+  it('reads each period, including negative money and either date style', async () => {
+    const { parseReturns } = await import('./data')
+    const [since, oneYear] = parseReturns(csv)
+    expect(since.period).toBe('since')
+    expect(since.beginning + since.net + since.change).toBeCloseTo(since.ending, 1)
+    expect(oneYear.net).toBe(-31.55)
+    expect(oneYear.years).toBeCloseTo(1, 2)
+  })
+
+  it('turns an annualized rate into the matching cumulative return', async () => {
+    const { parseReturns, cumulativeFrom } = await import('./data')
+    const [since] = parseReturns(csv)
+    // The brokerage's 11.43%/yr should match its own 191.75% cumulative figure.
+    expect(cumulativeFrom(since.club, since)).toBeCloseTo(191.75, 0)
+  })
+})
+
+describe('Risk tab', () => {
+  it('describes risk only as strongly as the numbers support', async () => {
+    const { parseRisk, riskSentence } = await import('./data')
+    const risk = parseRisk('measure,label,club,sp500,nasdaq,djia,window\nmaxDrawdown,Worst drop (%),-20.7,-23.9,-34.1,-19.8,5 years')
+    const sentence = riskSentence(risk.maxDrawdown)
+    expect(sentence).toContain('far less than the NASDAQ')
+    expect(sentence).toContain('less than the S&P 500')
+    expect(sentence).toContain('about the same as the Dow Jones')
+    expect(sentence).toContain('fell at most 20.7%')
+  })
+
+  it('does not claim lower risk when the club fell further', async () => {
+    const { riskSentence } = await import('./data')
+    const sentence = riskSentence({ club: -30, sp500: -20, nasdaq: -25, djia: -18 })
+    expect(sentence).not.toContain('less risk')
+    expect(sentence).toContain('more than the S&P 500')
+  })
+})
