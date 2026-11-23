@@ -53,6 +53,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .status-summary { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .status-pill { min-height: 36px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; color: var(--positive); background: var(--blue-soft); font-size: 12px; font-weight: 800; white-space: nowrap; }
 .status-pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px rgba(0,79,158,.14); }
+.status-detail { color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .status-pill.loading { color: var(--blue); }
 .status-pill.error { color: var(--negative); }
 .refresh-button, .error-state button { min-height: 40px; padding: 0 13px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--blue); border-radius: 8px; color: white; background: var(--blue); font-size: 12px; font-weight: 800; cursor: pointer; }
@@ -309,6 +310,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .data-status { width: 100%; max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
   .status-summary { min-width: 0; display: grid; align-items: start; gap: 5px; }
   .status-pill { min-height: 32px; width: fit-content; max-width: 100%; white-space: normal; }
+  .status-detail { white-space: normal; }
   .refresh-button { min-height: 48px; align-self: center; }
   .summary-layout { grid-template-columns: 1fr; }
   .portfolio-hero { min-height: 220px; padding: 21px; }

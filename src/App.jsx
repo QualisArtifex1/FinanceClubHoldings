@@ -48,6 +48,26 @@ export function yahooFinanceUrl(symbol) {
   return yahooSymbol ? `https://finance.yahoo.com/quote/${encodeURIComponent(yahooSymbol)}/` : ''
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// Formats the Sheet's "positions last entered" date. Reads the calendar date
+// exactly as written (e.g. 2026-11-12T14:05:25-05:00 → Nov 12, 2026) so the
+// viewer's time zone can never shift it to a different day.
+export function positionsDateLabel(value) {
+  const text = String(value ?? '').trim()
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (iso) {
+    const month = MONTHS[Number(iso[2]) - 1]
+    return month ? `${month} ${Number(iso[3])}, ${iso[1]}` : ''
+  }
+  const us = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (us) {
+    const month = MONTHS[Number(us[1]) - 1]
+    return month ? `${month} ${Number(us[2])}, ${us[3]}` : ''
+  }
+  return ''
+}
+
 function App() {
   const [route, setRoute] = useState(routeFromHash)
   const [data, setData] = useState(null)
@@ -102,8 +122,11 @@ function App() {
           <div className="data-status" aria-live="polite">
             <div className="status-summary">
               <span className={`status-pill ${error ? 'error' : loading ? 'loading' : ''}`}>
-                <i aria-hidden="true" /> {loading ? 'Checking Google Sheet' : error ? 'Sheet unavailable' : 'Current Sheet data loaded'}
+                <i aria-hidden="true" /> {loading ? 'Checking Google Sheet' : error ? 'Sheet unavailable' : 'Prices: live, ~20 min delayed'}
               </span>
+              {data && positionsDateLabel(data.settings.lastUpdated) && (
+                <span className="status-detail">Positions last entered {positionsDateLabel(data.settings.lastUpdated)}</span>
+              )}
             </div>
             <button className="refresh-button" type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}>
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6v5h-5 M4 18v-5h5 M18.5 9A7 7 0 0 0 6 6.5L4 9 M5.5 15A7 7 0 0 0 18 17.5l2-2.5" /></svg>
