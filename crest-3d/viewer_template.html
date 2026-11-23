@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catholic Central Crest 3D</title>
+<style>
+  :root { --bg:#eef1f6; --fg:#13213a; --muted:#5a6880; --panel:rgba(255,255,255,.85); --accent:#004ba0; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0d1420; --fg:#e8edf5; --muted:#93a1b8; --panel:rgba(20,28,42,.85); --accent:#5b9cff; } }
+  :root[data-theme="dark"] { --bg:#0d1420; --fg:#e8edf5; --muted:#93a1b8; --panel:rgba(20,28,42,.85); --accent:#5b9cff; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui,-apple-system,sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .panel { position:fixed; left:16px; top:16px; right:16px; max-width:360px; background:var(--panel); backdrop-filter:blur(8px); border-radius:12px; padding:12px 14px; box-shadow:0 4px 20px rgba(0,0,0,.12); }
+  h1 { font-size:16px; margin:0 0 4px; }
+  p { margin:0 0 8px; color:var(--muted); font-size:13px; }
+  .row { display:flex; gap:6px; flex-wrap:wrap; }
+  button { border:1px solid color-mix(in srgb, var(--accent) 40%, transparent); background:transparent; color:var(--fg); padding:5px 10px; border-radius:8px; cursor:pointer; font:inherit; font-size:13px; }
+  button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="panel">
+  <h1>Catholic Central crest: 3D medallion</h1>
+  <p>100 mm across, 4.6 mm thick. Drag to orbit, scroll to zoom.</p>
+  <div class="row">
+    <button id="spin" class="on">Auto-rotate</button>
+    <button id="front">Front</button>
+    <button id="angle">Angled</button>
+  </div>
+</div>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const GLB_B64 = "__GLB__";
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(35, 1, 1, 2000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 1.2;
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(-80, 120, 160); scene.add(key);
+scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+const bytes = Uint8Array.from(atob(GLB_B64), c => c.charCodeAt(0));
+new GLTFLoader().parse(bytes.buffer, '', gltf => {
+  const root = gltf.scene;
+  root.rotation.x = -Math.PI / 2;          // model is Z-up (CAD); face it toward the camera
+  const pivot = new THREE.Group(); pivot.rotation.x = Math.PI / 2; pivot.add(root);
+  root.traverse(o => { if (o.isMesh) { o.geometry = o.geometry.toNonIndexed(); o.geometry.computeVertexNormals(); o.material.flatShading = false; o.material.needsUpdate = true; } });
+  scene.add(pivot);
+  setView('angle');
+});
+
+function setView(v) {
+  if (v === 'front') camera.position.set(0, 0, 210);
+  else camera.position.set(-90, 60, 170);
+  controls.target.set(0, 0, 2); controls.update();
+}
+const spin = document.getElementById('spin');
+spin.onclick = () => { controls.autoRotate = !controls.autoRotate; spin.classList.toggle('on', controls.autoRotate); };
+document.getElementById('front').onclick = () => setView('front');
+document.getElementById('angle').onclick = () => setView('angle');
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h;
+  camera.fov = w < h ? 55 : 35; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>
+</body>
+</html>

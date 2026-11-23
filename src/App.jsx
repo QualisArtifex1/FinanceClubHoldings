@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { loadDashboardData, numberFrom, SECTOR_COLORS, summarize } from './data'
 import { AnimatedNumber, useInView } from './motion'
 import { Logo } from './Logo'
+import Crest3D from './Crest3D'
 import { withDailyChange } from './sample'
 import { LiveHero, TickerStrip, TodayMovers } from './live'
 import StoryView from './StoryView'
@@ -251,7 +252,7 @@ function Sidebar({ route, theme, onToggleTheme }) {
   return (
     <aside className="sidebar" aria-label="Dashboard navigation">
       <div className="brand">
-        <img src="./dcc-crest.png" alt="Detroit Catholic Central crest" />
+        <Crest3D />
         <div>
           <span>Detroit Catholic Central</span>
           <strong>Finance Club</strong>
