@@ -26,7 +26,7 @@ export function returnTakeaway(row) {
   return `${name} the club earned ${rate}: ahead of the ${beat.map((index) => index.label).join(' and ')}, behind the ${trail.map((index) => index.label).join(' and ')}.`
 }
 
-export default function PerformancePanel({ returns }) {
+export default function PerformancePanel({ returns, showComparison = true }) {
   const [period, setPeriod] = useState(returns[0]?.period)
   const [view, setView] = useState('rate')
   const [ref, inView] = useInView(0.2)
@@ -63,7 +63,7 @@ export default function PerformancePanel({ returns }) {
         <Waterfall row={row} inView={inView} />
       </div>
 
-      <div className="perf-compare">
+      {showComparison && <div className="perf-compare">
         <div className="perf-compare-head">
           <h3>Compared with the market</h3>
           <div className="segmented small" aria-label="Comparison view">
@@ -86,9 +86,9 @@ export default function PerformancePanel({ returns }) {
           })}
         </div>
         <p className="perf-takeaway">{returnTakeaway(row)}</p>
-      </div>
+      </div>}
       <p className="source-note">
-        As of {niceDate(row.end)}, from the club’s brokerage account ({niceDate(row.start)} – {niceDate(row.end)}). Rates of return and index returns are as reported by the brokerage{view === 'grown' ? '; growth of $1,000 is calculated from them' : ''}. Past results don’t predict future returns.
+        As of {niceDate(row.end)}, from the club’s brokerage account ({niceDate(row.start)} – {niceDate(row.end)}). Rates of return{showComparison ? ' and index returns' : ''} are as reported by the brokerage{showComparison && view === 'grown' ? '; growth of $1,000 is calculated from them' : ''}. Past results don’t predict future returns.
       </p>
     </section>
   )

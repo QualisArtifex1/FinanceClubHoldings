@@ -337,7 +337,7 @@ function PortfolioView({ data, summary, selectedHolding, onSelect, detailOpen, o
         <Insight label="Cash reserve" value={`${ratio(summary.cash, summary.portfolioValue).toFixed(1)}%`} detail={currency.format(summary.cash)} />
       </section>
       <EconomicPulseStrip economy={data.economy} />
-      {data.returns.length > 0 && <PerformancePanel returns={data.returns} />}
+      {data.returns.length > 0 && <PerformancePanel returns={data.returns} showComparison={false} />}
       <TodayMovers holdings={data.holdings} usedSample={data.usedSample} onSelect={onSelect} />
       <BalanceChart points={data.performance} hasReturns={data.returns.length > 0} />
       <div className="two-column">
@@ -828,7 +828,7 @@ function BenchmarkView({ data, summary }) {
   return (
     <div className="page-stack">
       {data.returns.length > 0
-        ? <PerformancePanel returns={data.returns} />
+        ? <PerformancePanel returns={data.returns} showComparison={false} />
         : <div className="notice info"><strong>What this comparison means:</strong> The Sheet currently provides SCHD sector weights, not historical SCHD returns. This page compares diversification and does not claim to measure relative investment performance.</div>}
       <div className="notice info"><strong>Below: sector mix vs SCHD.</strong> This compares how the portfolio is spread across sectors, not its returns.</div>
       <section className="insight-strip">
